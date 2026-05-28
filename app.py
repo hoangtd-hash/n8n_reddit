@@ -1,4 +1,6 @@
 import os
+import re
+import time
 from flask import Flask, request, jsonify
 import traceback
 
@@ -8,6 +10,22 @@ import transcriber
 import renderer
 
 app = Flask(__name__)
+
+def make_folder_name(clips):
+    """
+    Lấy text của clip đầu tiên, bốc 5 từ đầu làm tên thư mục.
+    Xóa ký tự đặc biệt, thay space bằng _, giới hạn 40 ký tự.
+    Ví dụ: "AI đang thay thế lập trình viên" → "AI_đang_thay_thế_lập"
+    """
+    raw = clips[0].get('text', '') if clips else ''
+    words = raw.strip().split()[:5]
+    name = '_'.join(words)
+    # Xóa ký tự không hợp lệ cho tên thư mục
+    name = re.sub(r'[\\/*?:"<>|]', '', name)
+    name = name[:40].strip('_')
+    # Thêm timestamp phía sau để không bao giờ trùng
+    timestamp = str(int(time.time()))
+    return f"{name}_{timestamp}" if name else f"output_{timestamp}"
 
 @app.route('/render', methods=['POST'])
 def render():
@@ -23,56 +41,63 @@ def render():
         if not clips:
             return jsonify({"status": "error", "message": "Không tìm thấy danh sách phân cảnh"}), 400
 
-        print(f"[+] Khởi động render hệ thống module với {len(clips)} phân cảnh...")
-
-        # 1. Clear file cũ
-        for f in os.listdir(OUTPUT_DIR):
-            if f.startswith("clip_") or f.startswith("norm_") or f.startswith("sub_") or f.startswith("voice_") or f in ["inputs.txt", "final_output.mp4"]:
-                try: os.remove(os.path.join(OUTPUT_DIR, f))
-                except: pass
+        # Tạo thư mục riêng cho job này
+        folder_name = make_folder_name(clips)
+        job_dir = os.path.join(OUTPUT_DIR, folder_name)
+        os.makedirs(job_dir, exist_ok=True)
+        print(f"[+] Khởi động render → thư mục: {folder_name} ({len(clips)} phân cảnh)")
 
         input_txt_content = ""
 
-        # 2. Chạy luồng tuần tự qua từng module
+        # Chạy luồng tuần tự qua từng module
         for idx, clip in enumerate(clips):
-            url = clip.get('url')
+            url  = clip.get('url')
             text = clip.get('text', '')
             if not url: continue
 
-            # Định nghĩa tên file tương đối
-            raw_clip = f"clip_{idx}.mp4"
+            raw_clip   = f"clip_{idx}.mp4"
             audio_clip = f"voice_{idx}.mp3"
-            norm_clip = f"norm_{idx}.mp4"
-            srt_file = f"sub_{idx}.srt"
+            norm_clip  = f"norm_{idx}.mp4"
+            srt_file   = f"sub_{idx}.srt"
 
-            raw_clip_path = os.path.join(OUTPUT_DIR, raw_clip)
-            audio_path = os.path.join(OUTPUT_DIR, audio_clip)
-            srt_path = os.path.join(OUTPUT_DIR, srt_file)
+            raw_clip_path = os.path.join(job_dir, raw_clip)
+            audio_path    = os.path.join(job_dir, audio_clip)
+            srt_path      = os.path.join(job_dir, srt_file)
 
             # Module 1: Tải video
             print(f" -> [{idx+1}/{len(clips)}] Đang tải video...")
             renderer.download_video(url, raw_clip_path)
 
-            # Module 2: Tạo giọng nói Zalo AI
-            print(f" -> Đang gọi module Zalo TTS...")
+            # Module 2: Tạo giọng nói
+            print(f" -> Đang gọi module TTS...")
             tts.get_zalo_voice(text, audio_path)
 
-            # Module 3: Chạy Whisper băm sub (Đã nâng cấp truyền text gốc để đối chiếu)
+            # Module 3: Whisper Forced Alignment
             print(f" -> Đang gọi module Whisper Local (Forced Alignment)...")
             transcriber.generate_local_whisper_srt(audio_path, srt_path, text, WORDS_PER_SUB_GROUP)
 
-            # Module 4: Đo độ dài và render từng phân cảnh bằng GPU Mac
+            # Module 4: Render từng phân cảnh bằng GPU Mac
             duration = renderer.get_audio_duration(audio_path)
             print(f" -> Đang gọi module FFmpeg Render (GPU)...")
-            renderer.render_single_clip(raw_clip, audio_clip, srt_file, norm_clip, duration)
+            renderer.render_single_clip(raw_clip, audio_clip, srt_file, norm_clip, duration, job_dir)
 
             input_txt_content += f"file '{norm_clip}'\n"
 
         # Module 5: Ghép phim tổng hợp
-        print("[+] Đang gộp toàn bộ phân cảnh thành video cuối cùng...")
-        renderer.concat_all_clips(input_txt_content)
+        final_output = "final_output.mp4"
+        print(f"[+] Đang gộp toàn bộ phân cảnh thành {final_output}...")
+        renderer.concat_all_clips(input_txt_content, final_output, job_dir)
 
-        return jsonify({"status": "success", "video": f"{OUTPUT_DIR}/final_output.mp4"})
+        # Giữ nguyên file trung gian để tham khảo khi test
+        # Sau khi test xong sẽ thêm lệnh xóa ở đây
+
+        final_path = os.path.join(job_dir, final_output)
+        print(f"[✔] Render hoàn tất: {final_path}")
+        return jsonify({
+            "status": "success",
+            "video": final_path,
+            "folder": folder_name
+        })
 
     except Exception as e:
         print(f"[❌] Lỗi hệ thống: {traceback.format_exc()}")
