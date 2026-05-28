@@ -1,9 +1,10 @@
 import re
-import whisper
+import stable_whisper # Đổi từ whisper sang stable_whisper
 from config import WHISPER_MODEL_NAME
 
-print(f"[*] Đang nạp model Whisper Local '{WHISPER_MODEL_NAME}' vào RAM...")
-whisper_model = whisper.load_model(WHISPER_MODEL_NAME)
+print(f"[*] Đang nạp model Stable-Whisper Local '{WHISPER_MODEL_NAME}' vào RAM...")
+# Load model bằng cấu trúc của stable_whisper
+whisper_model = stable_whisper.load_model(WHISPER_MODEL_NAME)
 
 PUNCT_STRONG = re.compile(r'[.?!…]$')
 PUNCT_WEAK   = re.compile(r'[,;:]$')
@@ -45,11 +46,20 @@ def to_srt_time(seconds):
     ms = int(round((seconds - int(seconds)) * 1000))
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
-def generate_local_whisper_srt(audio_path, srt_path, n):
-    """Chạy trích xuất timeline giật nhả theo dấu câu"""
-    result = whisper_model.transcribe(audio_path, word_timestamps=True, language="vi")
+def generate_local_whisper_srt(audio_path, srt_path, original_text, n):
+    """
+    SỬ DỤNG FORCED ALIGNMENT:
+    Ép Whisper khớp timeline dựa trên TEXT GỐC, không tự nhận diện chữ nữa.
+    """
+    # Gọi hàm align thay vì transcribe, ném thẳng original_text vào đối chiếu
+    result = whisper_model.align(audio_path, original_text, language="vi")
+    
+    # Ép kết quả về dạng dict cấu trúc chuẩn để giữ nguyên thuật toán băm sub cũ
+    result_dict = result.to_dict()
+    segments = result_dict.get("segments", [])
+    
     all_groups = []
-    for seg in result.get("segments", []):
+    for seg in segments:
         words = seg.get("words", [])
         if not words: continue
         all_groups.extend(group_words_in_segment(words, n))

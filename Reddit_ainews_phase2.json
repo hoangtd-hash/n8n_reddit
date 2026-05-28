@@ -1,0 +1,357 @@
+{
+  "name": "PHASE 2",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -592,
+        336
+      ],
+      "id": "70feb038-81d1-4054-bbcd-ec2e9d722cbc",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst output = [];\n\nfor (const item of allItems) {\n    const script = item.json.video_script || \"\";\n    const matches = script.match(/\\[(.*?)\\]/g) || [];\n    const brolls = matches.map(x =>\n        x\n        .replace(/[\\[\\]]/g,'')\n        .replace(/^B-roll:\\s*/i,'')\n        .trim()\n    );\n\n    let index = 0; // Bộ đếm số thứ tự clip\n    for (const scene of brolls) {\n        if (!scene) continue;\n        output.push({\n            json:{\n                id: item.json.id,\n                title: item.json.title,\n                category: item.json.category,\n                broll: scene,\n                clip_index: index++ // Gán ID để đặt tên file vật lý\n            }\n        });\n    }\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        336
+      ],
+      "id": "dd4832eb-b5b9-450b-8c1b-4ff9eb2a5fe2",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        240,
+        320
+      ],
+      "id": "0e0841c1-1228-4da9-b07e-b78470018573",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.pexels.com/videos/search?query={{$json.output}}&per_page=1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1168,
+        336
+      ],
+      "id": "9f3d98f1-db93-4f9d-af00-4d183a2be6b3",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "uXYsfsORmFeJBQxM",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Chuyển mô tả dưới đây thành MỘT truy vấn stock footage cho Pexels.\n\nQuy tắc:\n- Chỉ trả về duy nhất 1 cụm từ tiếng Anh\n- Tối đa 2–4 từ\n- Chỉ giữ chủ thể + hành động chính\n- Xóa chi tiết phụ, hiệu ứng, âm thanh, cảm xúc\n- Không dùng dấu phẩy\n- Không giải thích\n\nVí dụ:\n\"Học sinh ngủ gật trong lớp\"\n→ sleeping student classroom\n\n\"Người đang gõ code\"\n→ coding laptop\n\n\"Biểu đồ lương AI tăng\"\n→ AI salary chart\n\nInput:\n{{ $json.broll }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        816,
+        336
+      ],
+      "id": "d7839b67-6507-4f53-978d-2e3969b0d983",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        816,
+        592
+      ],
+      "id": "74254c9b-68ad-46fc-a245-c0c16645abc7",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "eN3ALHOeVCSL8S0y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const video = $json.videos?.[0];\n\nif (!video) {\n  return {\n    json: {\n      success: false\n    }\n  };\n}\n\n// ưu tiên HD dọc\nconst preferred =\n  video.video_files.find(v =>\n    v.width === 1080 &&\n    v.height === 1920\n  ) ||\n\n  video.video_files.find(v =>\n    v.height > v.width\n  ) ||\n\n  video.video_files.sort(\n    (a,b)=> b.width*b.height - a.width*a.height\n  )[0];\n\nreturn {\n  json:{\n    success:true,\n    video_url: preferred.link,\n    thumbnail: video.image,\n    duration: video.duration\n  }\n};\n\nreturn {\n  json: {\n    success: true,\n    query: $json.url,\n    video_url: preferred.link,\n    thumbnail: video.image,\n    duration: video.duration\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        336
+      ],
+      "id": "a8a216ed-c682-4751-bbf2-292d7c4978a4",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "amount": "={{ 1 }}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2016,
+        336
+      ],
+      "id": "f088ffe9-dd43-443d-b722-5f859dd30162",
+      "name": "Wait",
+      "webhookId": "bbe51e48-a140-4f67-ac92-9b95759ecfd6"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Bốc toàn bộ link video thành phẩm sau vòng lặp\nconst videoClips = $input.all();\n\n// 2. Bốc toàn bộ các hàng dữ liệu gốc từ Supabase\nconst allRows = $('select_rows').all();\n\nlet allNarrations = [];\n\nallRows.forEach(row => {\n    const hook = row.json.video_hook || \"\";\n    const script = row.json.video_script || \"\";\n    \n    // Tách các đoạn thoại bằng cách bỏ phần nằm trong thẻ [B-roll: ...]\n    let narrations = script.split(/\\[.*?\\]/s).map(t => t.trim()).filter(t => t.length > 0);\n    \n    // Nếu có hook, gộp câu hook vào ngay đầu câu thoại đầu tiên của bài đó\n    if (hook && narrations.length > 0) {\n        narrations[0] = hook + \" \" + narrations[0];\n    }\n    \n    allNarrations = allNarrations.concat(narrations);\n});\n\n// 3. Ráp nối 1:1 theo đúng thứ tự xuất hiện\nconst finalClips = videoClips.map((item, idx) => {\n    return {\n        url: item.json.video_url,\n        text: allNarrations[idx] || \"\" // Khớp đúng câu thoại đã có hook\n    };\n});\n\nreturn [{\n    json: {\n        clips: finalClips\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        64
+      ],
+      "id": "fc0a7068-00f3-4172-a9ea-459584fae01c",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9000/render",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json  }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        64
+      ],
+      "id": "c8692a9a-d12e-4047-849a-bdca7af7c05f",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "articles",
+          "mode": "list",
+          "cachedResultName": "articles"
+        },
+        "limit": 1,
+        "where": {
+          "values": []
+        },
+        "sort": {
+          "values": [
+            {
+              "column": "published_at",
+              "direction": "DESC"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -272,
+        336
+      ],
+      "id": "88ed10ff-b9ab-4467-8e34-ec47040dc085",
+      "name": "select_rows",
+      "credentials": {
+        "postgres": {
+          "id": "ebH3q7LkplGzOS9h",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Code in JavaScript3": [
+      {
+        "json": {
+          "clips": [
+            {
+              "url": "https://videos.pexels.com/video-files/35888104/15221272_1920_1080_25fps.mp4",
+              "text": "Nhiều người đang hoang mang sợ AI cướp việc lập trình, nhưng dữ liệu thực tế tại Mỹ lại chỉ ra điều ngược lại. Trái ngược với những tin đồn về làn sóng sa thải do AI, một nghiên cứu mới dựa trên dữ liệu dân số Mỹ cho thấy số lượng lập trình viên vẫn tiếp tục tăng trưởng ổn định."
+            },
+            {
+              "url": "https://videos.pexels.com/video-files/8480229/8480229-hd_1920_1080_25fps.mp4",
+              "text": "Một nhà phân tích trên Reddit thậm chí đã tự xây dựng biểu đồ theo dõi và xác nhận xu hướng tăng này kéo dài đến tận đầu năm nay."
+            },
+            {
+              "url": "https://videos.pexels.com/video-files/11274341/11274341-uhd_3840_2160_25fps.mp4",
+              "text": "Thực tế là AI đang đóng vai trò như một trợ lý giúp tăng hiệu suất, khiến các doanh nghiệp có nhu cầu tuyển dụng nhiều nhân sự biết dùng AI hơn là sa thải họ. Tất nhiên dữ liệu này áp dụng cho thị trường Mỹ, nhưng nó là minh chứng rõ ràng: thay vì lo sợ bị thế chỗ, việc chúng ta cần làm lúc này là học cách làm chủ các công cụ AI để tự cứu mình."
+            }
+          ]
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "select_rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "select_rows": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "1c91316a-108e-4878-a215-c8070bbede7c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "11397e4e8e2818fcf7ddb2e184892aa08ed7e1e5cef83e8a7589390bc2b4c74c"
+  },
+  "id": "5euSczaBB7qYA1jk",
+  "tags": []
+}

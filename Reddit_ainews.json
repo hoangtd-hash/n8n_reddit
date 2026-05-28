@@ -1,0 +1,296 @@
+{
+  "name": "PHASE 1",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "69873e17-d997-426e-8e77-beeba1078d15",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://www.reddit.com/r/ArtificialInteligence/new.json?limit=20",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "8516f3a8-bec1-4cbd-bb5e-925c03e2c86a",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "articles",
+        "limit": 1000
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "06d7d660-e459-4183-9ce4-b5ff913f2551",
+      "name": "Get many rows",
+      "credentials": {
+        "supabaseApi": {
+          "id": "vJ6gCw6ryNHjlp28",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const redditRaw = $('HTTP Request').first().json;\nconst redditPosts = redditRaw.data.children || []; \n\nconst supabaseRows = $('Get many rows').all();\nconst existingIds = new Set(supabaseRows.map(item => item.json.id)); \n\nconst uniqueItems = [];\n\nconst aiKeywords = ['ai', 'gpt', 'llm', 'artificial', 'intelligence', 'robot', 'learning', 'model', 'prompt', 'midjourney', 'claude', 'gemini', 'deepseek', 'openai', 'agent', 'rag', 'stable diffusion'];\n\nfor (const post of redditPosts) {\n    const postData = post.data;\n    \n    if (existingIds.has(postData.id)) continue;\n\n    const contentToCheck = (postData.title + \" \" + (postData.selftext || \"\")).toLowerCase();\n    const isAI = aiKeywords.some(keyword => contentToCheck.includes(keyword));\n    \n    if (isAI) {\n        // Quy đổi sang định dạng YYYY-MM-DD HH:MM:SS chuẩn múi giờ Việt Nam\n        const vnTime = new Date(postData.created_utc * 1000).toLocaleString('sv-SE', { \n            timeZone: 'Asia/Ho_Chi_Minh' \n        });\n\n        uniqueItems.push({\n            json: {\n                id: postData.id,\n                title: postData.title,\n                url: 'https://www.reddit.com' + postData.permalink, \n                content: postData.selftext || postData.title,\n                published_at: vnTime\n            }\n        });\n    }\n}\n\nreturn uniqueItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "6dfdaa85-e5cb-4cb7-bb72-b153fcf1d1da",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        832,
+        0
+      ],
+      "id": "c326454c-7e9e-4eeb-a5eb-c5dc7ae3f1e9",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Bạn là một Content Creator công nghệ độc lập tại Việt Nam, chuyên biên dịch và biến các cuộc thảo luận/tin tức AI từ Reddit thành video ngắn thực dụng, sắc bén và đáng tin cậy. Hãy đóng vai một người am hiểu đang kể lại một phát hiện thú vị cho bạn bè nghe.\n\nHãy chuyển thể bài viết từ Reddit dưới đây thành một kịch bản video ngắn (dưới 60 giây) bằng tiếng Việt.\n\nTiêu đề Reddit: {{ $json.title }}\nNội dung Reddit: {{ $json.content }}\n\nQUY TẮC PHÂN LOẠI CATEGORY (BẮT BUỘC):\nDựa trên nội dung bài viết, bạn CHỈ ĐƯỢC CHỌN 1 trong 3 danh mục chính xác sau đây để điền vào trường \"category\":\n- \"AI_News\": Tin tức cập nhật, sự kiện ra mắt, rò rỉ (leaks) hoặc tranh luận về tương lai AI.\n- \"AI_Tools\": Chia sẻ về công cụ mới, mẹo sử dụng, hướng dẫn prompt, cách tối ưu hiệu suất công việc.\n- \"AI_CaseStudy\": Câu chuyện thực tế của một người chia sẻ về việc họ bị mất việc, kiếm được tiền, hoặc trải nghiệm drama/xung đột khi dùng AI.\n* Luật ưu tiên khi chồng chéo nội dung: Ưu tiên AI_CaseStudy > AI_News > AI_Tools.\n\nCÔNG THỨC LAI TỐI ƯU (GIỮ CHÂN + UY TÍN):\n1. Giữ chân bằng tác động thực tế: Hook phải đánh thẳng vào việc người xem sẽ mất thời gian, mất cơ hội, hoặc thay đổi cách làm việc nếu bỏ qua tin này. Không dùng câu hỏi tu từ sáo rỗng.\n2. Giữ uy tín bằng sự trung thực: Tuyệt đối không cường điệu hóa công nghệ. Không hứa hẹn \"X100 hiệu suất\", \"kiếm tiền triệu\". \n3. Chống lặp khuôn mẫu (Cho Automation): Cấm dùng các cụm từ cửa miệng của AI TikTok như \"Bạn đã biết chưa\", \"Thôi xong rồi\", \"Cực kỳ nguy hiểm\", \"AI cười cho đấy\", \"Không thể phủ nhận\", \"Hãy cùng khám phá\".\n\nQUY TẮC NGÔN NGỮ & ĐỘ DÀI:\n- Giới hạn độ dài: Tổng số từ trong trường \"video_script\" khoảng 90–130 từ để phù hợp video dưới 60 giây.\n- Nhịp điệu tự nhiên: Phần lớn các câu dài từ 8–15 từ. Xen kẽ vài câu dài hơn để giọng đọc TTS không bị giật cục, nghe như người thật ngắt nghỉ.\n- Chống bịa tin (Fact-check): Nếu nội dung Reddit là tin đồn, rò rỉ hoặc ý kiến cá nhân chưa xác minh, dùng cách diễn đạt phù hợp như: \"theo bài viết này\", \"chưa có xác nhận chính thức\", hoặc \"một số người đang cho rằng\". Không biến suy đoán thành sự thật.\n\nQUY TẮC B-ROLL KIỂM SOÁT:\nGợi ý b-roll phải được viết trong ngoặc vuông [ ] xen kẽ vào nội dung đọc. Phải tuân theo thứ tự ưu tiên: Giao diện công cụ thật -> Thao tác màn hình thực tế -> Hình ảnh minh họa liên quan -> Biểu cảm con người (chỉ dùng khi thực sự cần thiết).\n\nYêu cầu kịch bản phải tuân theo cấu trúc JSON:\n- video_hook (3 giây đầu): Đi thẳng vào sự kiện cốt lõi và tác động của nó đến người xem.\n- video_script: Thân bài triển khai theo mạch: Tin gì xảy ra -> Tại sao nó quan trọng -> Tác động thật với người xem -> Kết luận gây suy nghĩ. Có chèn b-roll hợp lý.\n\nBẮT BUỘC trả về kết quả dưới dạng JSON thuần túy, không bọc dữ liệu trong ký hiệu cuộn mã (tuyệt đối không dùng dấu ```json). Định dạng cấu trúc chuẩn xác như sau:\n{\n  \"category\": \"Điền chính xác 1 trong 3 cụm từ: AI_News hoặc AI_Tools hoặc AI_CaseStudy\",\n  \"video_hook\": \"câu hook lai giữa giữ chân và uy tín ở đây\",\n  \"video_script\": \"nội dung bản tin súc tích kèm kết luận và b-roll trong ngoặc vuông ở đây\"\n}\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1056,
+        16
+      ],
+      "id": "93a3ba63-bffa-4772-b1cc-875836ace8c7",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1056,
+        272
+      ],
+      "id": "bb0e426f-0b82-4693-92a9-22faab24cfab",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "eN3ALHOeVCSL8S0y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "articles",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "id",
+              "fieldValue": "={{ $('Loop Over Items').item.json.id }}"
+            },
+            {
+              "fieldId": "title",
+              "fieldValue": "=`{{ $('Loop Over Items').item.json.title }}"
+            },
+            {
+              "fieldId": "url",
+              "fieldValue": "={{ $('Loop Over Items').item.json.url }}"
+            },
+            {
+              "fieldId": "published_at",
+              "fieldValue": "={{ $('Loop Over Items').item.json.published_at }}"
+            },
+            {
+              "fieldId": "category",
+              "fieldValue": "={{ JSON.parse($json.output.replace(/```json|```/g, '')).category }}"
+            },
+            {
+              "fieldId": "video_hook",
+              "fieldValue": "={{ JSON.parse($json.output.replace(/```json|```/g, '')).video_hook }}"
+            },
+            {
+              "fieldId": "video_script",
+              "fieldValue": "={{ JSON.parse($json.output.replace(/```json|```/g, '')).video_script }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        16
+      ],
+      "id": "bd40df21-4b2b-47b1-85fa-a76a92c81523",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "vJ6gCw6ryNHjlp28",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": "={{ 1 }}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1520,
+        16
+      ],
+      "id": "8c1ef26e-ccfe-496d-8312-5deb553ab308",
+      "name": "Wait",
+      "webhookId": "d9fcc5b0-d88d-4cdf-aa11-553c864caaaa"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Bangkok",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "b6bfd714-9633-48cc-9328-8c4e3a128493",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "11397e4e8e2818fcf7ddb2e184892aa08ed7e1e5cef83e8a7589390bc2b4c74c"
+  },
+  "id": "tYcpN2Gg57iKBFOZ",
+  "tags": []
+}

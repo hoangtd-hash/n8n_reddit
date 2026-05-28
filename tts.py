@@ -4,7 +4,9 @@ from config import ZALO_API_KEY
 
 def get_zalo_voice(text, audio_path):
     """
-    Gọi API Zalo AI kèm bộ lọc Polling kéo dài 40 giây chống sập CDN 404
+    Gọi API Zalo AI có tích hợp song song 2 bộ lọc:
+    1. Bộ lọc 429: Chống bị chặn khi bắn request liên tục giữa các phân cảnh.
+    2. Bộ lọc 404: Đợi CDN rặn xong file hoàn chỉnh mới tải.
     """
     url = "https://api.zalo.ai/v1/tts/synthesize"
     headers = {
@@ -19,7 +21,18 @@ def get_zalo_voice(text, audio_path):
         "encode_type": "1"      # MP3
     }
     
-    response = requests.post(url, headers=headers, data=payload)
+    # ── BỘ LỌC 1: CHỐNG LỖI 429 RATE LIMIT ──
+    response = None
+    max_429_retries = 5
+    for r_429 in range(max_429_retries):
+        response = requests.post(url, headers=headers, data=payload)
+        
+        if response.status_code == 429:
+            print(f"   [!] Zalo chặn 429 (Rate Limit). Đang ngủ 5 giây chờ nhả băng thông (Lần {r_429 + 1}/{max_429_retries})...")
+            time.sleep(5)
+            continue # Quay lại vòng lặp bắn tiếp
+        break # Nếu ra 200 hoặc lỗi khác thì thoát vòng lặp xử lý tiếp
+        
     if response.status_code != 200:
         raise Exception(f"Lỗi kết nối Zalo API: HTTP {response.status_code} - {response.text}")
         
@@ -29,7 +42,7 @@ def get_zalo_voice(text, audio_path):
     if error_code == 0:
         audio_url = res_json["data"]["url"]
         
-        # GIA HẠN THỜI GIAN: Thử lại 20 lần, mỗi lần nghỉ 2 giây (Chờ tối đa 40 giây)
+        # ── BỘ LỌC 2: CHỐNG LỖI 404 CDN (GIỮ NGUYÊN) ──
         max_retries = 20
         for attempt in range(max_retries):
             print(f"   [->] Check file trên CDN Zalo (Lần {attempt + 1}/{max_retries})...")
@@ -39,11 +52,10 @@ def get_zalo_voice(text, audio_path):
                 with open(audio_path, "wb") as f:
                     for chunk in audio_data.iter_content(chunk_size=1024*1024):
                         if chunk: f.write(chunk)
-                print("   [✔] Zalo đã render xong! Tải audio thành công.")
+                print("   [✔] Tải audio từ Zalo thành công!")
                 return True
                 
             elif audio_data.status_code == 404:
-                # Chờ 2 giây cho hệ thống Zalo xử lý render
                 time.sleep(2)
             else:
                 raise Exception(f"Lỗi CDN Zalo không xác định: HTTP {audio_data.status_code}")

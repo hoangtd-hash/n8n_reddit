@@ -57,9 +57,9 @@ def render():
             print(f" -> Đang gọi module Zalo TTS...")
             tts.get_zalo_voice(text, audio_path)
 
-            # Module 3: Chạy Whisper băm sub
-            print(f" -> Đang gọi module Whisper Local...")
-            transcriber.generate_local_whisper_srt(audio_path, srt_path, WORDS_PER_SUB_GROUP)
+            # Module 3: Chạy Whisper băm sub (Đã nâng cấp truyền text gốc để đối chiếu)
+            print(f" -> Đang gọi module Whisper Local (Forced Alignment)...")
+            transcriber.generate_local_whisper_srt(audio_path, srt_path, text, WORDS_PER_SUB_GROUP)
 
             # Module 4: Đo độ dài và render từng phân cảnh bằng GPU Mac
             duration = renderer.get_audio_duration(audio_path)

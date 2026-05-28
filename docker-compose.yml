@@ -1,0 +1,20 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Ho_Chi_Minh
+      - WEBHOOK_URL=http://localhost:5678/
+      - N8N_ENCRYPTION_KEY=mac_super_secret_key_2026
+      # Mở khóa các rào cản ghi file hệ thống
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      - N8N_BLOCK_FS_WRITE_ACCESS=false
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+      # Tạo luồng xuất file độc lập, không đụng chạm đến dữ liệu hệ thống
+      - ./output:/output
+      - ./n8n_data:/home/node/.n8n
+      - ./n8n-output:/files
