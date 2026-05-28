@@ -1,15 +1,15 @@
 {
-  "name": "PHASE 2 - YouTube Upload (table: published_videos)",
+  "name": "PHASE 3",
   "nodes": [
     {
       "parameters": {},
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -1536,
-        1184
+        704,
+        1520
       ],
-      "id": "4488e979-cd8c-4e6d-a7d2-6da725d97981",
+      "id": "4e4a08c2-6ba9-4b09-8d03-02e40b355d3a",
       "name": "When clicking ‘Execute workflow’"
     },
     {
@@ -19,10 +19,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1184,
-        1184
+        1056,
+        1520
       ],
-      "id": "e93df910-0660-4924-8ef1-82175f7e905c",
+      "id": "5d49685d-8fe3-4646-9cb4-b565f6de31fd",
       "name": "Code in JavaScript"
     },
     {
@@ -32,10 +32,10 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -976,
-        1168
+        1264,
+        1504
       ],
-      "id": "eb6f9fbf-38cc-4923-9b62-908b37719e47",
+      "id": "0676e32b-00ab-4e43-aefb-79d6d5aa8dbc",
       "name": "Loop Over Items"
     },
     {
@@ -48,10 +48,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -400,
-        1184
+        1840,
+        1520
       ],
-      "id": "53709c13-9bb1-4c74-b87b-369fbcb05ae1",
+      "id": "35071bb5-847b-489d-be2b-4c64483b4c57",
       "name": "HTTP Request",
       "credentials": {
         "httpHeaderAuth": {
@@ -69,10 +69,10 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        -752,
-        1184
+        1488,
+        1520
       ],
-      "id": "16c2f5fc-379b-4c9e-9e84-d56ce61f1f06",
+      "id": "bb7b4222-e79b-4df0-bfe0-8d77cdd9e39f",
       "name": "AI Agent"
     },
     {
@@ -83,10 +83,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        -752,
-        1440
+        1488,
+        1776
       ],
-      "id": "74412494-a78a-4933-ad96-a9975c6181e7",
+      "id": "d589d0db-3f5c-4cb7-9d05-8a5ba2cf64a0",
       "name": "Google Gemini Chat Model",
       "credentials": {
         "googlePalmApi": {
@@ -97,15 +97,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const video = $json.videos?.[0];\n\nif (!video) {\n  return {\n    json: {\n      success: false\n    }\n  };\n}\n\n// ưu tiên HD dọc\nconst preferred =\n  video.video_files.find(v =>\n    v.width === 1080 &&\n    v.height === 1920\n  ) ||\n\n  video.video_files.find(v =>\n    v.height > v.width\n  ) ||\n\n  video.video_files.sort(\n    (a,b)=> b.width*b.height - a.width*a.height\n  )[0];\n\nreturn {\n  json:{\n    success:true,\n    video_url: preferred.link,\n    thumbnail: video.image,\n    duration: video.duration\n  }\n};\n\nreturn {\n  json: {\n    success: true,\n    query: $json.url,\n    video_url: preferred.link,\n    thumbnail: video.image,\n    duration: video.duration\n  }\n};"
+        "jsCode": "const video = $json.videos?.[0];\n\nif (!video) return { json: { success: false } };\n\n// Ưu tiên HD dọc 1080x1920, fallback dọc bất kỳ, fallback lớn nhất\nconst preferred =\n  video.video_files.find(v => v.width === 1080 && v.height === 1920) ||\n  video.video_files.find(v => v.height > v.width) ||\n  video.video_files.sort((a, b) => b.width * b.height - a.width * a.height)[0];\n\nreturn {\n  json: {\n    success: true,\n    video_url: preferred.link,\n    duration: video.duration\n  }\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -176,
-        1184
+        2064,
+        1520
       ],
-      "id": "4bd14667-c210-44a4-86b6-ecfb2abce59b",
+      "id": "774087f0-f9f9-4568-a3fe-f01b33291a4a",
       "name": "Code in JavaScript1"
     },
     {
@@ -115,10 +115,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        -32,
-        1184
+        2208,
+        1520
       ],
-      "id": "795dd8d7-1d35-470f-bd04-b249d38ae9fc",
+      "id": "fb327cd5-44b0-4e5c-a411-ca3a9bdc0269",
       "name": "Wait",
       "webhookId": "bbe51e48-a140-4f67-ac92-9b95759ecfd6"
     },
@@ -129,10 +129,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -640,
-        912
+        1600,
+        1248
       ],
-      "id": "82052fae-d36d-4d82-999f-eaf739cb9a7f",
+      "id": "695c0a81-3d96-4306-a397-0e3abefaf7a2",
       "name": "Code in JavaScript3"
     },
     {
@@ -147,10 +147,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -384,
-        912
+        1856,
+        1248
       ],
-      "id": "2bff10b0-fe73-483a-88d1-468fd25abd57",
+      "id": "7cd8762c-121e-4936-b324-b36f8b3f3d3d",
       "name": "HTTP Request1"
     },
     {
@@ -173,7 +173,7 @@
           "values": [
             {
               "column": "id",
-              "value": "1tpwvun"
+              "value": "1tpwdyk"
             }
           ]
         },
@@ -190,10 +190,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -1360,
-        1184
+        880,
+        1520
       ],
-      "id": "52a42827-392c-4ea2-bdc1-67a730143c38",
+      "id": "eb754a48-43ec-4d1d-96c7-6bafe9b60316",
       "name": "select_rows",
       "credentials": {
         "postgres": {
@@ -204,30 +204,30 @@
     },
     {
       "parameters": {
-        "jsCode": "// Nhận kết quả từ Flask render\nconst result = $('HTTP Request1').first().json;\n\nif (result.status !== 'success') {\n  throw new Error(`[❌] Flask render thất bại: ${result.message || 'Unknown error'}`);\n}\n\n// Lấy row gốc từ select_rows\nconst row = $('select_rows').first().json;\n\nconsole.log(`[✔] Render OK: ${result.video}`);\n\nreturn [{\n  json: {\n    article_id:   row.id,\n    video_hook:   row.video_hook   || '',\n    video_script: row.video_script || '',\n    category:     row.category     || 'AI_News',\n    render_path:  result.video,\n    folder:       result.folder\n  }\n}];"
+        "jsCode": "const result = $('HTTP Request1').first().json;\n\nif (result.status !== 'success') {\n  throw new Error(`Flask render thất bại: ${result.message || 'Unknown error'}`);\n}\n\nconsole.log(`[✔] Render OK: ${result.video}`);\n\nreturn [{ json: { video_path: result.video } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        64,
-        912
+        2304,
+        1248
       ],
-      "id": "955bee3f-bdd3-4e72-b7be-b0070a72ecc7",
+      "id": "2e6bf373-522e-4b9e-a7aa-18c06755a27b",
       "name": "Check render success"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Bạn là chuyên gia SEO YouTube tại Việt Nam, chuyên tối ưu metadata cho Shorts công nghệ/AI.\n\nDựa trên nội dung video sau, hãy tạo metadata YouTube Shorts tối ưu:\n\nHook (3 giây đầu): {{ $json.video_hook }}\nNội dung đầy đủ: {{ $json.video_script }}\nDanh mục: {{ $json.category }}\n\nQuy tắc bắt buộc:\n- title: Tối đa 70 ký tự. Bắt đầu bằng emoji phù hợp. Lấy ý từ hook, viết lại súc tích hơn. KHÔNG clickbait.\n- description: 150-200 ký tự tóm tắt giá trị thực + hashtags ở cuối. Bao gồm #Shorts #AIVietNam và 4-5 hashtag nội dung.\n- tags: Mảng 10-12 từ khóa tiếng Việt + tiếng Anh, mix giữa broad (\"AI\", \"trí tuệ nhân tạo\") và specific (tên tool/sự kiện trong video).\n\nBẮT BUỘC trả về JSON thuần túy, KHÔNG dùng dấu ```:\n{\n  \"title\": \"...\",\n  \"description\": \"...\",\n  \"tags\": [\"tag1\", \"tag2\"]\n}",
+        "text": "=Bạn là chuyên gia SEO YouTube tại Việt Nam, chuyên tối ưu metadata cho Shorts công nghệ/AI.\n\nDựa trên nội dung video sau, hãy tạo metadata YouTube Shorts tối ưu:\n\nHook (3 giây đầu): {{ $('select_rows').first().json.video_hook }}\nNội dung đầy đủ: {{ $('select_rows').first().json.video_script }}\nDanh mục: {{ $('select_rows').first().json.category }}\n\nQuy tắc bắt buộc:\n- title: Tối đa 70 ký tự. Bắt đầu bằng emoji phù hợp. Lấy ý từ hook, viết lại súc tích hơn. KHÔNG clickbait.\n- description: 150-200 ký tự tóm tắt giá trị thực + hashtags ở cuối. Bao gồm #Shorts #AIVietNam và 4-5 hashtag nội dung.\n- tags: Mảng 10-12 từ khóa tiếng Việt + tiếng Anh, mix giữa broad (\"AI\", \"trí tuệ nhân tạo\") và specific (tên tool/sự kiện trong video).\n\nBẮT BUỘC trả về JSON thuần túy, KHÔNG dùng dấu ```:\n{\n  \"title\": \"...\",\n  \"description\": \"...\",\n  \"tags\": [\"tag1\", \"tag2\"]\n}",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        288,
-        912
+        2528,
+        1248
       ],
-      "id": "d0f9ed22-dedd-419c-9b0c-e15ec52e2c0e",
+      "id": "24e9c6df-b90c-4481-9adf-8410747f15b9",
       "name": "AI sinh metadata YouTube"
     },
     {
@@ -238,10 +238,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        288,
-        1088
+        2528,
+        1424
       ],
-      "id": "e8dc2169-ec9b-4bbd-8498-eef0f8b47447",
+      "id": "b29c1f32-4a19-45f8-9ec9-a387ae5a1f91",
       "name": "Gemini Flash (metadata)",
       "credentials": {
         "googlePalmApi": {
@@ -252,15 +252,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const aiOutput = $input.first().json.output || '';\nconst prev = $('Check render success').first().json;\n\nlet meta;\ntry {\n  meta = JSON.parse(aiOutput.replace(/```json|```/g, '').trim());\n} catch(e) {\n  meta = {\n    title: prev.video_hook.substring(0, 68),\n    description: 'Video AI mới nhất. #Shorts #AIVietNam #CongNgheAI #AI',\n    tags: ['AI', 'Trí tuệ nhân tạo', 'Công nghệ', 'Shorts', 'AIVietNam']\n  };\n  console.log('[!] AI trả sai format JSON, dùng fallback.');\n}\n\n// Kéo binary file từ node HTTP Request2 (get_video) vào item này\n// để node Upload YouTube Shorts nhận được cả json lẫn binary.data\nconst binaryData = $('HTTP Request2').first().binary;\n\nreturn [{\n  json: {\n    article_id:   prev.article_id,\n    render_path:  prev.render_path,\n    title:        (meta.title || '').substring(0, 100),\n    description:  meta.description || '',\n    tags:         Array.isArray(meta.tags) ? meta.tags : []\n  },\n  binary: binaryData\n}];"
+        "jsCode": "const aiOutput = $input.first().json.output || '';\n\nlet meta;\ntry {\n  meta = JSON.parse(aiOutput.replace(/```json|```/g, '').trim());\n} catch(e) {\n  const hook = $('select_rows').first().json.video_hook || '';\n  meta = {\n    title: hook.substring(0, 68),\n    description: 'Video AI mới nhất. #Shorts #AIVietNam #CongNgheAI #AI',\n    tags: ['AI', 'Trí tuệ nhân tạo', 'Công nghệ', 'Shorts', 'AIVietNam']\n  };\n  console.log('[!] AI trả sai format JSON, dùng fallback.');\n}\n\nconst binaryData = $('HTTP Request2').first().binary;\n\nreturn [{\n  json: {\n    article_id:  $('select_rows').first().json.id,\n    title:       (meta.title || '').substring(0, 100),\n    description: meta.description || '',\n    tags:        Array.isArray(meta.tags) ? meta.tags : []\n  },\n  binary: binaryData\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        608,
-        912
+        2848,
+        1248
       ],
-      "id": "4ad537ac-aa22-4ebe-a2f0-7373c2a935c0",
+      "id": "220706ea-17ca-4254-9a44-ab7c1d9c4885",
       "name": "Parse & fallback metadata"
     },
     {
@@ -277,10 +277,10 @@
       "type": "n8n-nodes-base.youTube",
       "typeVersion": 1,
       "position": [
-        912,
-        912
+        3152,
+        1248
       ],
-      "id": "62fd2394-4a60-492a-a8ca-7c266d808382",
+      "id": "7138f940-f401-4c3f-a580-50f31287b6c3",
       "name": "Upload YouTube Shorts",
       "credentials": {
         "youTubeOAuth2Api": {
@@ -291,15 +291,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const uploadRes = $input.first().json;\nconst prev = $('Parse & fallback metadata').first().json;\n\n// YouTube trả về id ở nhiều dạng tùy version API\nconst ytId = uploadRes.id\n  || uploadRes.snippet?.resourceId?.videoId\n  || uploadRes.contentDetails?.videoId\n  || '';\n\nconst ytUrl = ytId ? `https://www.youtube.com/shorts/${ytId}` : '';\n\nconsole.log(`[✔] YouTube upload OK → ${ytUrl}`);\n\nreturn [{\n  json: {\n    article_id:     prev.article_id,\n    render_path:    prev.render_path,\n    yt_title:       prev.title,\n    yt_description: prev.description,\n    yt_tags:        prev.tags,\n    youtube_id:     ytId,\n    youtube_url:    ytUrl,\n    yt_status:      ytId ? 'published' : 'failed',\n    yt_uploaded_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const uploadRes = $input.first().json;\nconst prev = $('Parse & fallback metadata').first().json;\n\nconst ytId = uploadRes.id\n  || uploadRes.snippet?.resourceId?.videoId\n  || uploadRes.contentDetails?.videoId\n  || '';\n\nconst ytUrl = ytId ? `https://www.youtube.com/shorts/${ytId}` : '';\nconsole.log(`[✔] YouTube upload OK → ${ytUrl}`);\n\nreturn [{\n  json: {\n    article_id:     prev.article_id,\n    yt_title:       prev.title,\n    yt_description: prev.description,\n    yt_tags:        prev.tags,\n    youtube_id:     ytId,\n    youtube_url:    ytUrl,\n    yt_status:      ytId ? 'published' : 'failed',\n    yt_uploaded_at: new Date().toISOString()\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1152,
-        912
+        3392,
+        1248
       ],
-      "id": "6bb952d7-5a4f-4ea3-b3d6-189e4a5a7682",
+      "id": "7753fe17-cd61-4769-8e9a-f939337b7800",
       "name": "Extract YouTube URL"
     },
     {
@@ -338,10 +338,6 @@
             {
               "fieldId": "yt_uploaded_at",
               "fieldValue": "={{ $json.yt_uploaded_at }}"
-            },
-            {
-              "fieldId": "render_path",
-              "fieldValue": "={{ $json.render_path }}"
             }
           ]
         }
@@ -349,10 +345,10 @@
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        1376,
-        912
+        3616,
+        1248
       ],
-      "id": "0735dbd5-0d3c-4b94-bb6c-dd2641edba8d",
+      "id": "3cf712b3-b02a-4c19-9b16-9474ef7bcec9",
       "name": "Insert vào published_videos",
       "credentials": {
         "supabaseApi": {
@@ -375,10 +371,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -128,
-        912
+        2112,
+        1248
       ],
-      "id": "5a1dc776-b804-497d-ab62-f3768b8acfd4",
+      "id": "dff83f58-d151-4749-89fa-5ce89f310f52",
       "name": "HTTP Request2",
       "alwaysOutputData": false
     }
@@ -596,7 +592,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "4eae56a0-5e62-4d16-b472-d5488e17548a",
+  "versionId": "e42402b1-0443-4864-baa9-7e4a418b7ab5",
   "meta": {
     "instanceId": "11397e4e8e2818fcf7ddb2e184892aa08ed7e1e5cef83e8a7589390bc2b4c74c"
   },
