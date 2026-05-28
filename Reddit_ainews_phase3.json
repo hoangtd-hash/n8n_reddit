@@ -1,0 +1,605 @@
+{
+  "name": "PHASE 2 - YouTube Upload (table: published_videos)",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1536,
+        1184
+      ],
+      "id": "4488e979-cd8c-4e6d-a7d2-6da725d97981",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst output = [];\n\nfor (const item of allItems) {\n    const script = item.json.video_script || \"\";\n    const matches = script.match(/\\[(.*?)\\]/g) || [];\n    const brolls = matches.map(x =>\n        x\n        .replace(/[\\[\\]]/g,'')\n        .replace(/^B-roll:\\s*/i,'')\n        .trim()\n    );\n\n    let index = 0; // Bộ đếm số thứ tự clip\n    for (const scene of brolls) {\n        if (!scene) continue;\n        output.push({\n            json:{\n                id: item.json.id,\n                title: item.json.title,\n                category: item.json.category,\n                broll: scene,\n                clip_index: index++ // Gán ID để đặt tên file vật lý\n            }\n        });\n    }\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1184,
+        1184
+      ],
+      "id": "e93df910-0660-4924-8ef1-82175f7e905c",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -976,
+        1168
+      ],
+      "id": "eb6f9fbf-38cc-4923-9b62-908b37719e47",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.pexels.com/videos/search?query={{$json.output}}&per_page=1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -400,
+        1184
+      ],
+      "id": "53709c13-9bb1-4c74-b87b-369fbcb05ae1",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "uXYsfsORmFeJBQxM",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Chuyển mô tả dưới đây thành MỘT truy vấn stock footage cho Pexels.\n\nQuy tắc:\n- Chỉ trả về duy nhất 1 cụm từ tiếng Anh\n- Tối đa 2–4 từ\n- Chỉ giữ chủ thể + hành động chính\n- Xóa chi tiết phụ, hiệu ứng, âm thanh, cảm xúc\n- Không dùng dấu phẩy\n- Không giải thích\n\nVí dụ:\n\"Học sinh ngủ gật trong lớp\"\n→ sleeping student classroom\n\n\"Người đang gõ code\"\n→ coding laptop\n\n\"Biểu đồ lương AI tăng\"\n→ AI salary chart\n\nInput:\n{{ $json.broll }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -752,
+        1184
+      ],
+      "id": "16c2f5fc-379b-4c9e-9e84-d56ce61f1f06",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -752,
+        1440
+      ],
+      "id": "74412494-a78a-4933-ad96-a9975c6181e7",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "eN3ALHOeVCSL8S0y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const video = $json.videos?.[0];\n\nif (!video) {\n  return {\n    json: {\n      success: false\n    }\n  };\n}\n\n// ưu tiên HD dọc\nconst preferred =\n  video.video_files.find(v =>\n    v.width === 1080 &&\n    v.height === 1920\n  ) ||\n\n  video.video_files.find(v =>\n    v.height > v.width\n  ) ||\n\n  video.video_files.sort(\n    (a,b)=> b.width*b.height - a.width*a.height\n  )[0];\n\nreturn {\n  json:{\n    success:true,\n    video_url: preferred.link,\n    thumbnail: video.image,\n    duration: video.duration\n  }\n};\n\nreturn {\n  json: {\n    success: true,\n    query: $json.url,\n    video_url: preferred.link,\n    thumbnail: video.image,\n    duration: video.duration\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        1184
+      ],
+      "id": "4bd14667-c210-44a4-86b6-ecfb2abce59b",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "amount": "={{ 1 }}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -32,
+        1184
+      ],
+      "id": "795dd8d7-1d35-470f-bd04-b249d38ae9fc",
+      "name": "Wait",
+      "webhookId": "bbe51e48-a140-4f67-ac92-9b95759ecfd6"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Bốc toàn bộ link video thành phẩm sau vòng lặp\nconst videoClips = $input.all();\n\n// 2. Bốc toàn bộ các hàng dữ liệu gốc từ Supabase\nconst allRows = $('select_rows').all();\n\nlet allNarrations = [];\n\nallRows.forEach(row => {\n    const hook = row.json.video_hook || \"\";\n    const script = row.json.video_script || \"\";\n    \n    // Tách các đoạn thoại bằng cách bỏ phần nằm trong thẻ [B-roll: ...]\n    let narrations = script.split(/\\[.*?\\]/s).map(t => t.trim()).filter(t => t.length > 0);\n    \n    // Nếu có hook, gộp câu hook vào ngay đầu câu thoại đầu tiên của bài đó\n    if (hook && narrations.length > 0) {\n        narrations[0] = hook + \" \" + narrations[0];\n    }\n    \n    allNarrations = allNarrations.concat(narrations);\n});\n\n// 3. Ráp nối 1:1 theo đúng thứ tự xuất hiện\nconst finalClips = videoClips.map((item, idx) => {\n    return {\n        url: item.json.video_url,\n        text: allNarrations[idx] || \"\" // Khớp đúng câu thoại đã có hook\n    };\n});\n\nreturn [{\n    json: {\n        clips: finalClips\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        912
+      ],
+      "id": "82052fae-d36d-4d82-999f-eaf739cb9a7f",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9000/render",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json  }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -384,
+        912
+      ],
+      "id": "2bff10b0-fe73-483a-88d1-468fd25abd57",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "articles",
+          "mode": "list",
+          "cachedResultName": "articles"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "id",
+              "value": "1tpwvun"
+            }
+          ]
+        },
+        "sort": {
+          "values": [
+            {
+              "column": "published_at",
+              "direction": "DESC"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1360,
+        1184
+      ],
+      "id": "52a42827-392c-4ea2-bdc1-67a730143c38",
+      "name": "select_rows",
+      "credentials": {
+        "postgres": {
+          "id": "ebH3q7LkplGzOS9h",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nhận kết quả từ Flask render\nconst result = $('HTTP Request1').first().json;\n\nif (result.status !== 'success') {\n  throw new Error(`[❌] Flask render thất bại: ${result.message || 'Unknown error'}`);\n}\n\n// Lấy row gốc từ select_rows\nconst row = $('select_rows').first().json;\n\nconsole.log(`[✔] Render OK: ${result.video}`);\n\nreturn [{\n  json: {\n    article_id:   row.id,\n    video_hook:   row.video_hook   || '',\n    video_script: row.video_script || '',\n    category:     row.category     || 'AI_News',\n    render_path:  result.video,\n    folder:       result.folder\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        64,
+        912
+      ],
+      "id": "955bee3f-bdd3-4e72-b7be-b0070a72ecc7",
+      "name": "Check render success"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Bạn là chuyên gia SEO YouTube tại Việt Nam, chuyên tối ưu metadata cho Shorts công nghệ/AI.\n\nDựa trên nội dung video sau, hãy tạo metadata YouTube Shorts tối ưu:\n\nHook (3 giây đầu): {{ $json.video_hook }}\nNội dung đầy đủ: {{ $json.video_script }}\nDanh mục: {{ $json.category }}\n\nQuy tắc bắt buộc:\n- title: Tối đa 70 ký tự. Bắt đầu bằng emoji phù hợp. Lấy ý từ hook, viết lại súc tích hơn. KHÔNG clickbait.\n- description: 150-200 ký tự tóm tắt giá trị thực + hashtags ở cuối. Bao gồm #Shorts #AIVietNam và 4-5 hashtag nội dung.\n- tags: Mảng 10-12 từ khóa tiếng Việt + tiếng Anh, mix giữa broad (\"AI\", \"trí tuệ nhân tạo\") và specific (tên tool/sự kiện trong video).\n\nBẮT BUỘC trả về JSON thuần túy, KHÔNG dùng dấu ```:\n{\n  \"title\": \"...\",\n  \"description\": \"...\",\n  \"tags\": [\"tag1\", \"tag2\"]\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        288,
+        912
+      ],
+      "id": "d0f9ed22-dedd-419c-9b0c-e15ec52e2c0e",
+      "name": "AI sinh metadata YouTube"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        288,
+        1088
+      ],
+      "id": "e8dc2169-ec9b-4bbd-8498-eef0f8b47447",
+      "name": "Gemini Flash (metadata)",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "eN3ALHOeVCSL8S0y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output || '';\nconst prev = $('Check render success').first().json;\n\nlet meta;\ntry {\n  meta = JSON.parse(aiOutput.replace(/```json|```/g, '').trim());\n} catch(e) {\n  meta = {\n    title: prev.video_hook.substring(0, 68),\n    description: 'Video AI mới nhất. #Shorts #AIVietNam #CongNgheAI #AI',\n    tags: ['AI', 'Trí tuệ nhân tạo', 'Công nghệ', 'Shorts', 'AIVietNam']\n  };\n  console.log('[!] AI trả sai format JSON, dùng fallback.');\n}\n\n// Kéo binary file từ node HTTP Request2 (get_video) vào item này\n// để node Upload YouTube Shorts nhận được cả json lẫn binary.data\nconst binaryData = $('HTTP Request2').first().binary;\n\nreturn [{\n  json: {\n    article_id:   prev.article_id,\n    render_path:  prev.render_path,\n    title:        (meta.title || '').substring(0, 100),\n    description:  meta.description || '',\n    tags:         Array.isArray(meta.tags) ? meta.tags : []\n  },\n  binary: binaryData\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        912
+      ],
+      "id": "4ad537ac-aa22-4ebe-a2f0-7373c2a935c0",
+      "name": "Parse & fallback metadata"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $json.title }}",
+        "regionCode": "VN",
+        "categoryId": "28",
+        "options": {
+          "selfDeclaredMadeForKids": false
+        }
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        912,
+        912
+      ],
+      "id": "62fd2394-4a60-492a-a8ca-7c266d808382",
+      "name": "Upload YouTube Shorts",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qR0zXyEGQ5YMRzTN",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const uploadRes = $input.first().json;\nconst prev = $('Parse & fallback metadata').first().json;\n\n// YouTube trả về id ở nhiều dạng tùy version API\nconst ytId = uploadRes.id\n  || uploadRes.snippet?.resourceId?.videoId\n  || uploadRes.contentDetails?.videoId\n  || '';\n\nconst ytUrl = ytId ? `https://www.youtube.com/shorts/${ytId}` : '';\n\nconsole.log(`[✔] YouTube upload OK → ${ytUrl}`);\n\nreturn [{\n  json: {\n    article_id:     prev.article_id,\n    render_path:    prev.render_path,\n    yt_title:       prev.title,\n    yt_description: prev.description,\n    yt_tags:        prev.tags,\n    youtube_id:     ytId,\n    youtube_url:    ytUrl,\n    yt_status:      ytId ? 'published' : 'failed',\n    yt_uploaded_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        912
+      ],
+      "id": "6bb952d7-5a4f-4ea3-b3d6-189e4a5a7682",
+      "name": "Extract YouTube URL"
+    },
+    {
+      "parameters": {
+        "tableId": "published_videos",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "article_id",
+              "fieldValue": "={{ $json.article_id }}"
+            },
+            {
+              "fieldId": "yt_title",
+              "fieldValue": "={{ $json.yt_title }}"
+            },
+            {
+              "fieldId": "yt_description",
+              "fieldValue": "={{ $json.yt_description }}"
+            },
+            {
+              "fieldId": "yt_tags",
+              "fieldValue": "={{ $json.yt_tags }}"
+            },
+            {
+              "fieldId": "youtube_id",
+              "fieldValue": "={{ $json.youtube_id }}"
+            },
+            {
+              "fieldId": "youtube_url",
+              "fieldValue": "={{ $json.youtube_url }}"
+            },
+            {
+              "fieldId": "yt_status",
+              "fieldValue": "={{ $json.yt_status }}"
+            },
+            {
+              "fieldId": "yt_uploaded_at",
+              "fieldValue": "={{ $json.yt_uploaded_at }}"
+            },
+            {
+              "fieldId": "render_path",
+              "fieldValue": "={{ $json.render_path }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        912
+      ],
+      "id": "0735dbd5-0d3c-4b94-bb6c-dd2641edba8d",
+      "name": "Insert vào published_videos",
+      "credentials": {
+        "supabaseApi": {
+          "id": "vJ6gCw6ryNHjlp28",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:9000/get_video?path={{ $('HTTP Request1').first().json.video }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -128,
+        912
+      ],
+      "id": "5a1dc776-b804-497d-ab62-f3768b8acfd4",
+      "name": "HTTP Request2",
+      "alwaysOutputData": false
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "select_rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "select_rows": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check render success": {
+      "main": [
+        [
+          {
+            "node": "AI sinh metadata YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Flash (metadata)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI sinh metadata YouTube",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI sinh metadata YouTube": {
+      "main": [
+        [
+          {
+            "node": "Parse & fallback metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & fallback metadata": {
+      "main": [
+        [
+          {
+            "node": "Upload YouTube Shorts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload YouTube Shorts": {
+      "main": [
+        [
+          {
+            "node": "Extract YouTube URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract YouTube URL": {
+      "main": [
+        [
+          {
+            "node": "Insert vào published_videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Check render success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4eae56a0-5e62-4d16-b472-d5488e17548a",
+  "meta": {
+    "instanceId": "11397e4e8e2818fcf7ddb2e184892aa08ed7e1e5cef83e8a7589390bc2b4c74c"
+  },
+  "id": "wrp2LciTo0SCxOVZ",
+  "tags": []
+}

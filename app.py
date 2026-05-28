@@ -1,7 +1,7 @@
 import os
 import re
 import time
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 import traceback
 
 from config import OUTPUT_DIR, WORDS_PER_SUB_GROUP
@@ -20,12 +20,11 @@ def make_folder_name(clips):
     raw = clips[0].get('text', '') if clips else ''
     words = raw.strip().split()[:5]
     name = '_'.join(words)
-    # Xóa ký tự không hợp lệ cho tên thư mục
     name = re.sub(r'[\\/*?:"<>|]', '', name)
     name = name[:40].strip('_')
-    # Thêm timestamp phía sau để không bao giờ trùng
     timestamp = str(int(time.time()))
     return f"{name}_{timestamp}" if name else f"output_{timestamp}"
+
 
 @app.route('/render', methods=['POST'])
 def render():
@@ -49,7 +48,6 @@ def render():
 
         input_txt_content = ""
 
-        # Chạy luồng tuần tự qua từng module
         for idx, clip in enumerate(clips):
             url  = clip.get('url')
             text = clip.get('text', '')
@@ -103,5 +101,36 @@ def render():
         print(f"[❌] Lỗi hệ thống: {traceback.format_exc()}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+@app.route('/get_video', methods=['GET'])
+def get_video():
+    """
+    Endpoint cho n8n tải file video về dạng binary.
+    n8n gọi: GET http://host.docker.internal:9000/get_video?path=/đường/dẫn/final_output.mp4
+    Flask đọc file rồi trả về binary stream — không cần Read File node trong Docker.
+    """
+    try:
+        video_path = request.args.get('path', '')
+
+        if not video_path:
+            return jsonify({"status": "error", "message": "Thiếu tham số ?path="}), 400
+
+        if not os.path.exists(video_path):
+            return jsonify({"status": "error", "message": f"File không tồn tại: {video_path}"}), 404
+
+        print(f"[+] Đang gửi file về n8n: {video_path}")
+        return send_file(
+            video_path,
+            mimetype='video/mp4',
+            as_attachment=True,
+            download_name=os.path.basename(video_path)
+        )
+
+    except Exception as e:
+        print(f"[❌] Lỗi get_video: {traceback.format_exc()}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# Luôn để block này ở cuối cùng của file
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=9000)
