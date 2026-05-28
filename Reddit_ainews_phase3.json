@@ -1,15 +1,15 @@
 {
-  "name": "PHASE 3",
+  "name": "PHASE 2 - YouTube Upload (table: published_videos)",
   "nodes": [
     {
       "parameters": {},
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        704,
-        1520
+        -896,
+        272
       ],
-      "id": "4e4a08c2-6ba9-4b09-8d03-02e40b355d3a",
+      "id": "4061c19e-86bb-404d-bfed-1794d5350802",
       "name": "When clicking ‘Execute workflow’"
     },
     {
@@ -19,10 +19,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1056,
-        1520
+        -544,
+        272
       ],
-      "id": "5d49685d-8fe3-4646-9cb4-b565f6de31fd",
+      "id": "4a06d896-b7b7-4b6f-82f8-baa3295c6249",
       "name": "Code in JavaScript"
     },
     {
@@ -32,10 +32,10 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        1264,
-        1504
+        -336,
+        256
       ],
-      "id": "0676e32b-00ab-4e43-aefb-79d6d5aa8dbc",
+      "id": "e9b240b0-a838-4f27-8881-8189e38b9d35",
       "name": "Loop Over Items"
     },
     {
@@ -48,10 +48,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1840,
-        1520
+        240,
+        272
       ],
-      "id": "35071bb5-847b-489d-be2b-4c64483b4c57",
+      "id": "2bdc5ba3-cf6a-4bba-86bf-1cf7a38f252d",
       "name": "HTTP Request",
       "credentials": {
         "httpHeaderAuth": {
@@ -69,10 +69,10 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        1488,
-        1520
+        -112,
+        272
       ],
-      "id": "bb7b4222-e79b-4df0-bfe0-8d77cdd9e39f",
+      "id": "6e7c3ca8-3665-4162-9f3f-819b5f49c9c6",
       "name": "AI Agent"
     },
     {
@@ -83,10 +83,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        1488,
-        1776
+        -112,
+        528
       ],
-      "id": "d589d0db-3f5c-4cb7-9d05-8a5ba2cf64a0",
+      "id": "8f634c60-cc82-49e2-a9d5-1f87739d9523",
       "name": "Google Gemini Chat Model",
       "credentials": {
         "googlePalmApi": {
@@ -102,10 +102,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2064,
-        1520
+        464,
+        272
       ],
-      "id": "774087f0-f9f9-4568-a3fe-f01b33291a4a",
+      "id": "629412ec-9b49-4346-8d22-518420cc681f",
       "name": "Code in JavaScript1"
     },
     {
@@ -115,10 +115,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        2208,
-        1520
+        608,
+        272
       ],
-      "id": "fb327cd5-44b0-4e5c-a411-ca3a9bdc0269",
+      "id": "ae4cc74f-b686-4a5a-a190-625fa44de295",
       "name": "Wait",
       "webhookId": "bbe51e48-a140-4f67-ac92-9b95759ecfd6"
     },
@@ -129,10 +129,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1600,
-        1248
+        0,
+        0
       ],
-      "id": "695c0a81-3d96-4306-a397-0e3abefaf7a2",
+      "id": "2714aee3-3f94-4cb0-b7ae-9fed046eca8c",
       "name": "Code in JavaScript3"
     },
     {
@@ -147,10 +147,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1856,
-        1248
+        256,
+        0
       ],
-      "id": "7cd8762c-121e-4936-b324-b36f8b3f3d3d",
+      "id": "c61230ca-425f-43f9-8e91-8f9d0f0e2eed",
       "name": "HTTP Request1"
     },
     {
@@ -173,7 +173,7 @@
           "values": [
             {
               "column": "id",
-              "value": "1tpwdyk"
+              "value": "1tpvbwy"
             }
           ]
         },
@@ -190,10 +190,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        880,
-        1520
+        -720,
+        272
       ],
-      "id": "eb754a48-43ec-4d1d-96c7-6bafe9b60316",
+      "id": "634acfd2-05d6-4e29-aa1a-afef4fef0d90",
       "name": "select_rows",
       "credentials": {
         "postgres": {
@@ -204,19 +204,6 @@
     },
     {
       "parameters": {
-        "jsCode": "const result = $('HTTP Request1').first().json;\n\nif (result.status !== 'success') {\n  throw new Error(`Flask render thất bại: ${result.message || 'Unknown error'}`);\n}\n\nconsole.log(`[✔] Render OK: ${result.video}`);\n\nreturn [{ json: { video_path: result.video } }];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2304,
-        1248
-      ],
-      "id": "2e6bf373-522e-4b9e-a7aa-18c06755a27b",
-      "name": "Check render success"
-    },
-    {
-      "parameters": {
         "promptType": "define",
         "text": "=Bạn là chuyên gia SEO YouTube tại Việt Nam, chuyên tối ưu metadata cho Shorts công nghệ/AI.\n\nDựa trên nội dung video sau, hãy tạo metadata YouTube Shorts tối ưu:\n\nHook (3 giây đầu): {{ $('select_rows').first().json.video_hook }}\nNội dung đầy đủ: {{ $('select_rows').first().json.video_script }}\nDanh mục: {{ $('select_rows').first().json.category }}\n\nQuy tắc bắt buộc:\n- title: Tối đa 70 ký tự. Bắt đầu bằng emoji phù hợp. Lấy ý từ hook, viết lại súc tích hơn. KHÔNG clickbait.\n- description: 150-200 ký tự tóm tắt giá trị thực + hashtags ở cuối. Bao gồm #Shorts #AIVietNam và 4-5 hashtag nội dung.\n- tags: Mảng 10-12 từ khóa tiếng Việt + tiếng Anh, mix giữa broad (\"AI\", \"trí tuệ nhân tạo\") và specific (tên tool/sự kiện trong video).\n\nBẮT BUỘC trả về JSON thuần túy, KHÔNG dùng dấu ```:\n{\n  \"title\": \"...\",\n  \"description\": \"...\",\n  \"tags\": [\"tag1\", \"tag2\"]\n}",
         "options": {}
@@ -224,10 +211,10 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        2528,
-        1248
+        928,
+        0
       ],
-      "id": "24e9c6df-b90c-4481-9adf-8410747f15b9",
+      "id": "2662ec17-35bf-4c9f-b6a6-ec66e8b71604",
       "name": "AI sinh metadata YouTube"
     },
     {
@@ -238,10 +225,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        2528,
-        1424
+        928,
+        176
       ],
-      "id": "b29c1f32-4a19-45f8-9ec9-a387ae5a1f91",
+      "id": "946efe01-9576-4a6d-b73c-eb36bbf88e83",
       "name": "Gemini Flash (metadata)",
       "credentials": {
         "googlePalmApi": {
@@ -257,10 +244,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2848,
-        1248
+        1248,
+        0
       ],
-      "id": "220706ea-17ca-4254-9a44-ab7c1d9c4885",
+      "id": "14fe0fb9-4809-4fb2-8d26-389c43b6687c",
       "name": "Parse & fallback metadata"
     },
     {
@@ -277,10 +264,10 @@
       "type": "n8n-nodes-base.youTube",
       "typeVersion": 1,
       "position": [
-        3152,
-        1248
+        1552,
+        0
       ],
-      "id": "7138f940-f401-4c3f-a580-50f31287b6c3",
+      "id": "4f0da947-09e3-472c-bc61-5a88edb63621",
       "name": "Upload YouTube Shorts",
       "credentials": {
         "youTubeOAuth2Api": {
@@ -291,15 +278,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const uploadRes = $input.first().json;\nconst prev = $('Parse & fallback metadata').first().json;\n\nconst ytId = uploadRes.id\n  || uploadRes.snippet?.resourceId?.videoId\n  || uploadRes.contentDetails?.videoId\n  || '';\n\nconst ytUrl = ytId ? `https://www.youtube.com/shorts/${ytId}` : '';\nconsole.log(`[✔] YouTube upload OK → ${ytUrl}`);\n\nreturn [{\n  json: {\n    article_id:     prev.article_id,\n    yt_title:       prev.title,\n    yt_description: prev.description,\n    yt_tags:        prev.tags,\n    youtube_id:     ytId,\n    youtube_url:    ytUrl,\n    yt_status:      ytId ? 'published' : 'failed',\n    yt_uploaded_at: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const uploadRes = $input.first().json;\nconst prev = $('Parse & fallback metadata').first().json;\n\nconst ytId = uploadRes.uploadId || uploadRes.id\n  || uploadRes.snippet?.resourceId?.videoId\n  || uploadRes.contentDetails?.videoId\n  || '';\n\nconst ytUrl = ytId ? `https://www.youtube.com/shorts/${ytId}` : '';\nconsole.log(`[✔] YouTube upload OK → ${ytUrl}`);\n\nreturn [{\n  json: {\n    article_id:     prev.article_id,\n    yt_title:       prev.title,\n    yt_description: prev.description,\n    yt_tags:        prev.tags,\n    youtube_id:     ytId,\n    youtube_url:    ytUrl,\n    yt_status:      ytId ? 'published' : 'failed',\n    yt_uploaded_at: new Date().toISOString()\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3392,
-        1248
+        1792,
+        0
       ],
-      "id": "7753fe17-cd61-4769-8e9a-f939337b7800",
+      "id": "949aeb7e-f47f-4c5f-87fc-d307ae3fe006",
       "name": "Extract YouTube URL"
     },
     {
@@ -345,10 +332,10 @@
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        3616,
-        1248
+        2016,
+        0
       ],
-      "id": "3cf712b3-b02a-4c19-9b16-9474ef7bcec9",
+      "id": "19d9ad03-f7f0-4558-aedb-97358112a1b4",
       "name": "Insert vào published_videos",
       "credentials": {
         "supabaseApi": {
@@ -356,6 +343,19 @@
           "name": "Supabase account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nif (result.status !== 'success') {\n  throw new Error(`Flask thất bại: ${result.message || 'Unknown error'}`);\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        0
+      ],
+      "id": "38eca31d-a0c7-4ce2-a9ce-acad6a95b266",
+      "name": "Check Flask OK"
     },
     {
       "parameters": {
@@ -371,10 +371,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        2112,
-        1248
+        672,
+        0
       ],
-      "id": "dff83f58-d151-4749-89fa-5ce89f310f52",
+      "id": "94d25426-6902-4688-b873-162639e7d1d8",
       "name": "HTTP Request2",
       "alwaysOutputData": false
     }
@@ -498,7 +498,7 @@
         ]
       ]
     },
-    "Check render success": {
+    "HTTP Request2": {
       "main": [
         [
           {
@@ -568,18 +568,18 @@
       "main": [
         [
           {
-            "node": "HTTP Request2",
+            "node": "Check Flask OK",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "HTTP Request2": {
+    "Check Flask OK": {
       "main": [
         [
           {
-            "node": "Check render success",
+            "node": "HTTP Request2",
             "type": "main",
             "index": 0
           }
@@ -592,10 +592,10 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "e42402b1-0443-4864-baa9-7e4a418b7ab5",
+  "versionId": "88200b21-2bad-4526-8401-6ef141d4feae",
   "meta": {
     "instanceId": "11397e4e8e2818fcf7ddb2e184892aa08ed7e1e5cef83e8a7589390bc2b4c74c"
   },
-  "id": "wrp2LciTo0SCxOVZ",
+  "id": "OBabEk6oF1lAV4hY",
   "tags": []
 }
