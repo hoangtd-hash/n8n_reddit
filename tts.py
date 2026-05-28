@@ -1,10 +1,48 @@
 import asyncio
+import re
 import edge_tts
 
 # ── CẤU HÌNH GIỌNG EDGE TTS ──
 # vi-VN-HoaiMyNeural  : Nữ, giọng Bắc
 # vi-VN-NamMinhNeural : Nam, giọng Bắc
 VOICE = "vi-VN-HoaiMyNeural"
+
+# ── BẢNG CHUẨN HÓA TỪ VIẾT TẮT ──
+# Thêm từ mới vào đây nếu TTS đọc sai
+REPLACEMENTS = {
+    "ChatGPT":      "Chat-GPT",
+    "GPT-4":        "GPT bốn",
+    "GPT-4o":       "GPT bốn o",
+    "GPT4":         "GPT bốn",
+    "GPT":          "G P T",
+    "OpenAI":       "Open AI",
+    "DeepSeek":     "Deep Seek",
+    "Gemini":       "Gemini",
+    "Claude":       "Claude",
+    "LLM":          "L L M",
+    "RAG":          "R A G",
+    "API":          "A P I",
+    "CEO":          "C E O",
+    "AI":           "AI",        # giữ nguyên, Edge đọc được
+    "AGI":          "A G I",
+    "GPU":          "G P U",
+    "CPU":          "C P U",
+    "SaaS":         "Sát",       # hoặc "S A A S" tùy bạn thích
+    "USD":          "đô la Mỹ",
+    "Reddit":       "Reddit",
+    "YouTube":      "YouTube",
+    "TikTok":       "TikTok",
+    "Pexels":       "Pexels",
+}
+
+def normalize_text(text: str) -> str:
+    """
+    Thay thế các từ viết tắt/tên riêng trước khi đưa vào TTS.
+    Dùng word boundary \\b để tránh thay nhầm (vd: 'API' trong 'RAPID').
+    """
+    for word, replacement in REPLACEMENTS.items():
+        text = re.sub(rf'\b{re.escape(word)}\b', replacement, text)
+    return text
 
 async def _synthesize(text: str, audio_path: str):
     communicate = edge_tts.Communicate(text, VOICE)
@@ -17,8 +55,9 @@ def get_zalo_voice(text, audio_path):
     Khi quota Zalo hồi phục: bọc block Edge TTS vào triple-quote,
     rồi xóa triple-quote bao quanh block Zalo bên dưới là xong.
     """
+    cleaned = normalize_text(text)
     print(f"   [->] Edge TTS đang tổng hợp giọng ({VOICE})...")
-    asyncio.run(_synthesize(text, audio_path))
+    asyncio.run(_synthesize(cleaned, audio_path))
     print(f"   [✔] Edge TTS xuất audio thành công: {audio_path}")
     return True
 
