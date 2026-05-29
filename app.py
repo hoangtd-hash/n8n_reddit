@@ -2,6 +2,7 @@ import os
 import re
 import time
 import traceback
+import threading  # Thêm thư viện khóa luồng
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify, send_file
 
@@ -11,6 +12,9 @@ import transcriber
 import renderer
 
 app = Flask(__name__)
+
+# KHỞI TẠO LOCK: Đảm bảo tại một thời điểm chỉ có duy nhất 1 thread được gọi API TTS
+tts_lock = threading.Lock()
 
 def make_folder_name(clips):
     raw = clips[0].get('text', '') if clips else ''
@@ -34,8 +38,27 @@ def process_io_task(idx, clip, job_dir):
         raw_clip_path = os.path.join(job_dir, raw_clip)
         audio_path = os.path.join(job_dir, audio_clip)
 
+        # 1. Download video chạy song song tối đa hiệu suất mạng
         renderer.download_video(url, raw_clip_path)
-        tts.get_zalo_voice(text, audio_path)
+        
+        # 2. KHÓA TUẦN TỰ: Thằng nào tải video xong trước thì vào ăn API trước, thằng sau phải xếp hàng chờ
+        with tts_lock:
+            # VÒNG LẶP RETRY: Nếu API TTS lỗi, tự động thử lại tối đa 3 lần
+            for attempt in range(3):
+                try:
+                    tts.get_zalo_voice(text, audio_path)
+                    
+                    # Kiểm tra file audio có tồn tại và có dung lượng thật không
+                    if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                        break # Thành công thì thoát vòng lặp retry
+                except Exception as tts_err:
+                    if attempt == 2:  # Quá 3 lần vẫn chết thì mới ném lỗi ra ngoài
+                        raise tts_err
+                    print(f"[!] Lỗi TTS phân cảnh {idx}, đang thử lại lần {attempt + 1}... Chi tiết: {str(tts_err)}")
+                    time.sleep(2) # Nghỉ 2 giây trước khi thử lại
+            
+            # Khoảng nghỉ nhỏ 0.5 giây giữa các thread sau khi nhả khóa để tránh Microsoft quét spam IP
+            time.sleep(0.5)
 
         return idx, raw_clip, audio_clip, text, None
     except Exception as e:

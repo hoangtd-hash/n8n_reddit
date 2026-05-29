@@ -1,0 +1,849 @@
+{
+  "name": "PHASE 3 CLEAN",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\n// Chỉ lấy bài có _action = render (item đầu tiên từ If True)\nconst item = allItems[0];\nconst output = [];\n\nconst script = item.json.video_script || \"\";\nconst matches = script.match(/\\[(.*?)\\]/g) || [];\nconst brolls = matches.map(x =>\n    x\n    .replace(/[\\[\\]]/g,'')\n    .replace(/^B-roll:\\s*/i,'')\n    .trim()\n);\n\nlet index = 0;\nfor (const scene of brolls) {\n    if (!scene) continue;\n    output.push({\n        json:{\n            id: item.json.id,\n            title: item.json.title,\n            category: item.json.category,\n            ai_score: item.json.ai_score,\n            ai_reason: item.json.ai_reason,\n            broll: scene,\n            clip_index: index++\n        }\n    });\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        80
+      ],
+      "id": "e1f6e10b-5518-4284-86b9-51f80cab7188",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        704,
+        80
+      ],
+      "id": "7cd06468-62b4-43d6-a41b-f8392ce57636",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.pexels.com/videos/search?query={{$json.output}}&per_page=1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1280,
+        104
+      ],
+      "id": "0415031a-4d06-4354-be93-078b767fca0e",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "uXYsfsORmFeJBQxM",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Chuyển mô tả dưới đây thành MỘT truy vấn stock footage cho Pexels.\n\nQuy tắc:\n- Chỉ trả về duy nhất 1 cụm từ tiếng Anh\n- Tối đa 2–4 từ\n- Chỉ giữ chủ thể + hành động chính\n- Xóa chi tiết phụ, hiệu ứng, âm thanh, cảm xúc\n- Không dùng dấu phẩy\n- Không giải thích\n\nVí dụ:\n\"Học sinh ngủ gật trong lớp\"\n→ sleeping student classroom\n\n\"Người đang gõ code\"\n→ coding laptop\n\n\"Biểu đồ lương AI tăng\"\n→ AI salary chart\n\nInput:\n{{ $json.broll }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        928,
+        104
+      ],
+      "id": "ee6aaf33-38d8-42fe-9206-42899b3b9cb2",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        928,
+        352
+      ],
+      "id": "26646403-c025-4da8-b2a9-b83b22c89a8a",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "eN3ALHOeVCSL8S0y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const video = $json.videos?.[0];\n\nif (!video) return { json: { success: false } };\n\n// Ưu tiên HD dọc 1080x1920, fallback dọc bất kỳ, fallback lớn nhất\nconst preferred =\n  video.video_files.find(v => v.width === 1080 && v.height === 1920) ||\n  video.video_files.find(v => v.height > v.width) ||\n  video.video_files.sort((a, b) => b.width * b.height - a.width * a.height)[0];\n\nreturn {\n  json: {\n    success: true,\n    video_url: preferred.link,\n    duration: video.duration\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        104
+      ],
+      "id": "2fc0fd2a-9d24-4443-965e-790989a77033",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "amount": "={{ 1 }}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1728,
+        128
+      ],
+      "id": "bb8c193f-8dc5-4053-b18f-8227eab4b1bc",
+      "name": "Wait",
+      "webhookId": "bbe51e48-a140-4f67-ac92-9b95759ecfd6"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Bốc toàn bộ link video thành phẩm sau vòng lặp\nconst videoClips = $input.all();\n\n// 2. Lấy kịch bản từ node viết lại (Sửa đúng tên node liền trước nếu ông đặt khác)\nconst allRows = $('Code in JavaScript4').all(); \n\nlet allNarrations = [];\n\nallRows.forEach(row => {\n    const hook = row.json.video_hook || \"\";\n    const script = row.json.video_script || \"\";\n    \n    // Đã sửa Regex chuẩn: /\\[[\\s\\S]*?\\]/g để bẻ gãy mọi ngoặc vuông bất kể xuống dòng\n    let narrations = script\n        .split(/\\[[\\s\\S]*?\\]/g)\n        .map(t => t.trim())\n        .filter(t => t.length > 0);\n    \n    // Nếu có hook, gộp vào đoạn thoại đầu tiên\n    if (hook && narrations.length > 0) {\n        // Kiểm tra tránh trùng lặp nếu hook đã vô tình bị nhồi vào script trước đó\n        if (!narrations[0].includes(hook)) {\n            narrations[0] = hook + \" \" + narrations[0];\n        }\n    } else if (hook && narrations.length === 0) {\n        narrations.push(hook);\n    }\n    \n    allNarrations = allNarrations.concat(narrations);\n});\n\n// 3. Ráp nối clip + thoại và dọn sạch triệt để\nconst finalClips = videoClips.map((item, idx) => {\n    let rawText = allNarrations[idx] || \"tiếp tục\";\n    \n    // Bộ lọc dọn sạch triệt để một lần nữa trước khi gửi sang Python\n    let cleanText = rawText\n        .replace(/\\[[\\s\\S]*?\\]/g, '')\n        .replace(/\\s+/g, ' ')\n        .trim();\n        \n    return {\n        url: item.json.video_url,\n        text: cleanText\n    };\n});\n\nreturn [{\n    json: {\n        clips: finalClips\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        992,
+        -192
+      ],
+      "id": "164d35a1-379b-4e56-87c6-b2225fdeea71",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:9000/render",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json  }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1280,
+        -192
+      ],
+      "id": "57133646-72d7-4144-8e45-96729add4a2b",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Bạn là chuyên gia SEO YouTube tại Việt Nam, chuyên tối ưu metadata cho Shorts công nghệ/AI.\n\nDựa trên nội dung video sau, hãy tạo metadata YouTube Shorts tối ưu:\n\nHook (3 giây đầu): {{ $('Code in JavaScript4').first().json.video_hook }}\nNội dung đầy đủ: {{ $('Code in JavaScript4').first().json.video_script }}\nDanh mục: {{ $('Code in JavaScript4').first().json.category }}\n\nQuy tắc bắt buộc:\n- title: Tối đa 70 ký tự. Bắt đầu bằng emoji phù hợp. Lấy ý từ hook, viết lại súc tích hơn. KHÔNG clickbait.\n- description: 150-200 ký tự tóm tắt giá trị thực + hashtags ở cuối. Bao gồm #Shorts #AIVietNam và 4-5 hashtag nội dung.\n- tags: Mảng 10-12 từ khóa tiếng Việt + tiếng Anh, mix giữa broad (\"AI\", \"trí tuệ nhân tạo\") và specific (tên tool/sự kiện trong video).\n\nBẮT BUỘC trả về JSON thuần túy, KHÔNG dùng dấu ```:\n{\n  \"title\": \"...\",\n  \"description\": \"...\",\n  \"tags\": [\"tag1\", \"tag2\"]\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1952,
+        -192
+      ],
+      "id": "f68f2b75-ff60-4380-8a82-ef02657599f4",
+      "name": "AI sinh metadata YouTube"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1952,
+        16
+      ],
+      "id": "713d89ef-d0dc-4e7d-ac3a-d64c33e9742b",
+      "name": "Gemini Flash (metadata)",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "eN3ALHOeVCSL8S0y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output || '';\n\nlet meta;\ntry {\n  meta = JSON.parse(aiOutput.replace(/```json|```/g, '').trim());\n} catch(e) {\n  const hook = $('Execute a SQL query').first().json.video_hook || '';\n  meta = {\n    title: hook.substring(0, 68),\n    description: 'Video AI mới nhất. #Shorts #AIVietNam #CongNgheAI #AI',\n    tags: ['AI', 'Trí tuệ nhân tạo', 'Công nghệ', 'Shorts', 'AIVietNam']\n  };\n  console.log('[!] AI trả sai format JSON, dùng fallback.');\n}\n\nconst binaryData = $('HTTP Request2').first().binary;\n\nreturn [{\n  json: {\n    article_id:  $('Execute a SQL query').first().json.id,\n    title:       (meta.title || '').substring(0, 100),\n    description: meta.description || '',\n    tags:        Array.isArray(meta.tags) ? meta.tags : []\n  },\n  binary: binaryData\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        -192
+      ],
+      "id": "c8b3cfeb-07bd-45d4-beb6-7c77c69e9d42",
+      "name": "Parse & fallback metadata"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "upload",
+        "title": "={{ $json.title }}",
+        "regionCode": "VN",
+        "categoryId": "28",
+        "options": {
+          "selfDeclaredMadeForKids": false
+        }
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        2528,
+        -192
+      ],
+      "id": "67c1caf0-adbc-46cb-933b-f7ccb7412b48",
+      "name": "Upload YouTube Shorts",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "qR0zXyEGQ5YMRzTN",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const uploadRes = $input.first().json;\nconst prev = $('Parse & fallback metadata').first().json;\n\nconst ytId = uploadRes.uploadId || uploadRes.id\n  || uploadRes.snippet?.resourceId?.videoId\n  || uploadRes.contentDetails?.videoId\n  || '';\n\nconst ytUrl = ytId ? `https://www.youtube.com/shorts/${ytId}` : '';\nconsole.log(`[✔] YouTube upload OK → ${ytUrl}`);\n\nreturn [{\n  json: {\n    article_id:     prev.article_id,\n    yt_title:       prev.title,\n    yt_description: prev.description,\n    yt_tags:        prev.tags,\n    youtube_id:     ytId,\n    youtube_url:    ytUrl,\n    yt_status:      ytId ? 'published' : 'failed',\n    yt_uploaded_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        -192
+      ],
+      "id": "238ecd36-1808-4041-b9e8-05b9bcfa560f",
+      "name": "Extract YouTube URL"
+    },
+    {
+      "parameters": {
+        "tableId": "published_videos",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "article_id",
+              "fieldValue": "={{ $json.article_id }}"
+            },
+            {
+              "fieldId": "yt_title",
+              "fieldValue": "={{ $json.yt_title }}"
+            },
+            {
+              "fieldId": "yt_description",
+              "fieldValue": "={{ $json.yt_description }}"
+            },
+            {
+              "fieldId": "yt_tags",
+              "fieldValue": "={{ $json.yt_tags }}"
+            },
+            {
+              "fieldId": "youtube_id",
+              "fieldValue": "={{ $json.youtube_id }}"
+            },
+            {
+              "fieldId": "youtube_url",
+              "fieldValue": "={{ $json.youtube_url }}"
+            },
+            {
+              "fieldId": "yt_status",
+              "fieldValue": "={{ $json.yt_status }}"
+            },
+            {
+              "fieldId": "yt_uploaded_at",
+              "fieldValue": "={{ $json.yt_uploaded_at }}"
+            },
+            {
+              "fieldId": "ai_score",
+              "fieldValue": "={{ $('Code in JavaScript2').first().json.ai_score }}"
+            },
+            {
+              "fieldId": "ai_reason",
+              "fieldValue": "={{ $('Code in JavaScript2').first().json.ai_reason }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2976,
+        -192
+      ],
+      "id": "3dd60edb-aac7-4451-bc18-c433d186e4dd",
+      "name": "Insert vào published_videos",
+      "credentials": {
+        "supabaseApi": {
+          "id": "vJ6gCw6ryNHjlp28",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json;\nif (result.status !== 'success') {\n  throw new Error(`Flask thất bại: ${result.message || 'Unknown error'}`);\n}\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        -192
+      ],
+      "id": "81e4fbc6-87aa-4d93-9a22-2fede6c9d153",
+      "name": "Check Flask OK"
+    },
+    {
+      "parameters": {
+        "url": "=http://host.docker.internal:9000/get_video?path={{ $('HTTP Request1').first().json.video }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1728,
+        -192
+      ],
+      "id": "851bc676-eb4c-428c-90ae-2e15c3e8866b",
+      "name": "HTTP Request2",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.* FROM articles a\nLEFT JOIN published_videos p ON p.article_id = a.id\nWHERE p.id IS NULL\nORDER BY a.published_at DESC\nLIMIT 10",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1120,
+        252
+      ],
+      "id": "295c3d6f-abed-4d9d-a040-e90df7b5ac80",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "ebH3q7LkplGzOS9h",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Bạn là Giám đốc Nội dung (Content Director) chuyên săn tìm các chủ đề bốc lửa, có chiều sâu về AI và Công nghệ để làm video Shorts tại Việt Nam. \n\nNhiệm vụ của bạn là đánh giá TIỀM NĂNG CỦA ĐỀ TÀI qua Tiêu đề (Title). BẮT BUỘC BỎ QUA và KHÔNG ĐƯỢC CHẤM ĐIỂM dựa trên phần \"Nội dung\" (vì đó là kịch bản nháp viết lỗi, sẽ có node khác viết lại sau). Hãy nhìn vào cốt lõi của tin tức xem nó có đủ \"độ nặng\" và \"sự tò mò\" để thu hút dân tech/văn phòng Việt Nam hay không.\n\nThang điểm thẩm định Đề tài (Từ 1-10):\n\n1. Tính Nghịch lý & Độc lạ (Tối đa 3đ):\n- 3đ: Có sự tương phản lớn, sự kiện độc lạ hiếm thấy (Ví dụ: Trùm công nghệ đi gặp Giáo hoàng, AI tự kiểm toán lỗi cắn tiền API, các vụ kiện cáo tỷ đô, lỗi sập hệ thống lớn).\n- 1đ: Tin tức học thuật chung chung, các bài nghiên cứu khoa học khô khan, giải thưởng mang tính lý thuyết (Ví dụ: Đạt bài test Turing, mô phỏng não trong phòng thí nghiệm...).\n\n2. Tác động trực tiếp đến người xem (Tối đa 3đ):\n- 3đ: Đánh trúng nỗi đau mất tiền, mất việc, hoặc ảnh hưởng trực tiếp đến các công cụ họ đang xài hàng ngày (ChatGPT, Claude sắp bị chậm, AI code lỗi mất tiền API).\n- 1đ: Tin xa vời ở nước ngoài, không ảnh hưởng đến nồi cơm hay trải nghiệm của người Việt.\n\n3. Tính Thời sự & Độ nóng (Tối đa 2đ):\n- 2đ: Sự kiện mới, giới tech toàn cầu đang tranh luận, chưa có nhiều kênh ở Việt Nam làm.\n- 1đ: Đề tài cũ, kiến thức giáo khoa xào lại.\n\n4. Tiềm năng giật Hook giữ chân (Tối đa 2đ):\n- 2đ: Tiêu đề chứa sẵn các từ khóa cực mạnh, chỉ cần nghe qua là muốn dừng lại xem lý do.\n- 1đ: Tiêu đề phẳng lặng, nghe xong biết luôn kết quả, không có gì tò mò.\n\nDanh sách đề tài cần chấm điểm:\n{{ $input.all().map((item, i) => `ID: ${item.json.id}\\nTiêu đề: ${item.json.title}\\nNội dung: ${item.json.video_script}`).join('\\n\\n') }}\n\nBẮT BUỘC trả về JSON thuần, không kèm cặp dấu ``` hay bất kỳ chữ nào khác ngoài khối JSON:\n\n[\n  {\n    \"id\": \"bài_id\",\n    \"criteria_breakdown\": {\n      \"nghich_ly_doc_la\": 0,\n      \"tac_dong_truc_tiep\": 0,\n      \"thoi_su_do_nong\": 0,\n      \"tiem_nang_giat_hook\": 0\n    },\n    \"score\": 0,\n    \"reason\": \"Giải thích ngắn gọn tại sao đề tài này HOT hoặc tại sao đề tài này HÀN LÂM/KHÔ KHAN.\"\n  }\n]",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -896,
+        252
+      ],
+      "id": "662175a3-5cc4-4139-92a7-94b70c95c73c",
+      "name": "AI Agent1",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -896,
+        464
+      ],
+      "id": "4ee6acf7-8ab7-468f-89e0-8745d7633a25",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7QR8ilZfH8PIwb2u",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.output || '';\nconst allRows = $('Execute a SQL query').all();\n\nlet scores;\ntry {\n  scores = JSON.parse(output.replace(/```json|```/g, '').trim());\n} catch(e) {\n  scores = [];\n}\n\nconst scored = allRows.map(item => {\n  const found = scores.find(s => s.id === item.json.id);\n  return {\n    ...item.json,\n    ai_score:  found ? found.score  : 0,\n    ai_reason: found ? found.reason : 'Không chấm được'\n  };\n});\n\n// Bài >= 8: đưa vào render, lấy bài cao nhất\nconst passed = scored\n  .filter(r => r.ai_score >= 8)\n  .sort((a, b) => b.ai_score - a.ai_score);\n\n// Bài < 6: reject luôn — không bao giờ bốc lại\nconst toReject = scored.filter(r => r.ai_score < 6);\n\nif (toReject.length > 0) {\n  console.log(`[!] Reject ${toReject.length} bài dưới 6 điểm`);\n}\n\nif (passed.length === 0) {\n  // Không có bài nào >= 8, reject bài xấu rồi dừng\n  return toReject.map(r => ({ json: { ...r, _action: 'reject' } }));\n}\n\nconst best = passed[0];\nconsole.log(`[✔] Chọn bài: \"${best.title}\" (${best.ai_score}đ)`);\n\nreturn [\n  { json: { ...best, _action: 'render' } },\n  ...toReject.map(r => ({ json: { ...r, _action: 'reject' } }))\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        252
+      ],
+      "id": "5d267ad3-c603-42f7-8c2b-025d01eafa47",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f320aceb-3590-46bb-ace2-606b33e901c0",
+              "leftValue": "={{ $json._action }}",
+              "rightValue": "render",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -320,
+        252
+      ],
+      "id": "f746818e-ecfe-470a-98e9-31ef61e18956",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "tableId": "published_videos",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "article_id",
+              "fieldValue": "={{ $json.id }}"
+            },
+            {
+              "fieldId": "yt_status",
+              "fieldValue": "={{ $json._action }}"
+            },
+            {
+              "fieldId": "ai_score",
+              "fieldValue": "={{ $json.ai_score }}"
+            },
+            {
+              "fieldId": "ai_reason",
+              "fieldValue": "={{ $json.ai_reason }}"
+            },
+            {
+              "fieldId": "yt_description",
+              "fieldValue": "={{ $json.video_hook }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        480
+      ],
+      "id": "c5d65081-25ee-49db-b23d-5fef5f36d223",
+      "name": "Insert bài Reject",
+      "credentials": {
+        "supabaseApi": {
+          "id": "vJ6gCw6ryNHjlp28",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1344,
+        252
+      ],
+      "id": "97814ce7-f9f5-4530-9974-9334e4c4e117",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Bạn là một Tech Lead lão luyện tại Việt Nam, sở hữu kênh Shorts chuyên phân tích sâu và phản biện các vấn đề công nghệ. Văn phong của bạn sòng phẳng, lạnh lùng, dùng từ ngữ kỹ thuật thuần Việt, nói câu nào chắc câu đó nhưng phải có độ kết nối logic chặt chẽ, không viết câu cụt lủn và KHÔNG lặp lại một màu qua các video khác nhau. KHÔNG dịch word-by-word, KHÔNG giật gân sến sẩm.\n\nDỮ LIỆU ĐẦU VÀO:\nTiêu đề tiếng Anh: {{ $json.title }}\nKịch bản nháp cũ (Chỉ dùng để lấy ý chính): {{ $json.video_script }}\n\n========================================\nQUY TẮC ĐỊNH DẠNG VÀ CẤU TRÚC (BẮT BUỘC)\nCHỈ trả về đúng định dạng JSON thuần túy. CẤM viết dấu bọc mã ```json hay ```. Format chính xác:\n{\n  \"category\": \"AI_News hoặc AI_Tools hoặc AI_CaseStudy\",\n  \"video_hook\": \"Nội dung câu hook ngắn dưới 20 từ\",\n  \"video_script\": \"[Mô tả B-roll 1] Câu thoại 1. [Mô tả B-roll 2] Câu thoại 2. [Mô tả B-roll 3] Câu thoại 3. [Mô tả B-roll 4] Câu thoại 4.\"\n}\n\n========================================\nQUY TẮC PHÒNG VỆ CỰC NGHIÊM:\n1. VỊ TRÍ THẺ B-ROLL: Thẻ ngoặc vuông `[...]` BẮT BUỘC phải đứng TRƯỚC câu thoại của phân cảnh đó. CẤM đặt thẻ B-roll ở cuối câu thoại hoặc xuống dòng tùy tiện. Mỗi kịch bản chỉ viết đúng 4 cặp.\n2. CHỐNG AI DỊCH THUẬT RÁC: CẤM dịch kiểu nửa tây nửa ta như \"botch task\", \"pull back nhân sự\", \"execute process\". Phải dùng từ ngữ thực tế của giới công nghệ Việt Nam.\n3. NHỊP ĐIỆU ĐAN XEN: Đan xen linh hoạt giữa câu ngắn (để giật vấn đề) và câu dài hơn (từ 15-20 từ để phân tích nguyên nhân/hậu quả) giúp giọng TTS ngắt nghỉ tự nhiên. Tổng dung lượng đạt từ 100-125 từ. Cấm lặp từ \"bạn\", cấm nói đạo lý.\n\n========================================\nQUY TẮC ĐA DẠNG HÓA TỪ VỰNG (CHỐNG LẶP VĂN MẪU):\n- Các từ lóng trong [VÍ DỤ MẪU] như \"bánh vẽ\", \"lỗi bét nhè\", \"canh bạc\", \"thả xích\" CHỈ ĐƯỢC DÙNG cho bài đăng trùng khớp ví dụ. \n- Khi viết các bài mới, phải tự linh động thay đổi từ ngữ kết nối tùy theo ngữ cảnh của tiêu đề:\n  + Nếu là tin tốt/công cụ mới: Dùng \"bước đi chiến lược\", \"tối ưu sâu\", \"đáng để cân nhắc\", \"giải quyết triệt để\", \"nhìn khá mượt\".\n  + Nếu là tin lỗi/phản biện: Dùng \"đi vào lòng đất\", \"lỗ hổng vận hành\", \"bất ổn\", \"rủi ro bảo mật\", \"ăn quả đắng\", \"vỡ mộng\".\n- Tuyệt đối không bê nguyên xi cụm từ nối của ví dụ này sang bài viết của ví dụ khác.\n\n========================================\nHÃY TẬP TRUNG VÀO TƯ DUY LOGIC CỦA 2 VÍ DỤ MẪU SAU ĐỂ TỰ ĐA DẠNG HÓA BÀI MỚI:\n\n[VÍ DỤ MẪU 1]\n- Input Title: \"⚠️ Companies Report AI Agents Regularly Failing and Botching Important Tasks\"\n- Output JSON:\n{\n  \"category\": \"AI_CaseStudy\",\n  \"video_hook\": \"Hàng loạt doanh nghiệp âm thầm gỡ bỏ AI Agent vì lỗi hệ thống quá nặng.\",\n  \"video_script\": \"[Giao diện bài báo công nghệ báo cáo lỗi] Làn sóng vội vã đưa AI Agent vào vận hành đang bắt đầu phản tác dụng khi các công ty đồng loạt báo cáo hệ thống lỗi bét nhè. [Màn hình dòng code báo lỗi đỏ rực] Việc thả xích cho bot tự chạy tưởng ngon ăn, ai dè trong thực tế nó tự động gửi sai hàng loạt hóa đơn, xóa nhầm database và thậm chí là chat bậy với khách hàng. [Nhân sự ngồi rà soát đối chiếu dữ liệu thủ công] Để sửa sai cho đống rác công nghệ này, nhiều doanh nghiệp buộc phải rút bớt tự động hóa, bắt nhân sự ngồi giám sát thủ công từng bước trước khi bấm chạy. [Cânt cảnh màn hình tắt tính năng tự động] Rõ ràng tính tự chủ của AI hiện tại vẫn là một canh bạc quá liều, anh em đừng vội tin vào cái bánh vẽ tự động hóa hoàn toàn khi hệ thống chưa đủ chín.\"\n}\n\n[VÍ DỤ MẪU 2]\n- Input Title: \"When the AI knows it ruined your day: Claude’s self-audit after wasting 8 hours, paid API calls, and GPU time.\"\n- Output JSON:\n{\n  \"category\": \"AI_CaseStudy\",\n  \"video_hook\": \"Mất trắng 8 tiếng debug script Python do AI viết, câu chuyện cảnh tỉnh cho anh em lười check code.\",\n  \"video_script\": \"[Giao diện bài đăng lỗi trên Reddit] Đây là một case cực kỳ thực tế về việc lạm dụng AI để code mà thiếu đi sự giám sát của kỹ sư có kinh nghiệm. [Thao tác lướt dòng code lỗi] Ông dev này thả cho Claude tự viết script Python liên tục suốt 8 tiếng đồng hồ, để rồi nhận lại cái kết là một cơ sở dữ liệu bị phá nát. [Biểu đồ chi phí token API vọt lên] Đau nhất là khi check lại log hệ thống, chính con AI này tự thống kê thiệt hại đã đốt sạch tiền API lẫn chi phí GPU đám mây của chủ nhà. [Dev nhìn màn hình mệt mỏi] Bỏ tiền túi mua bản Premium để rồi cuối cùng phải đi làm tester không lương cho tụi nó, giao việc cho AI mà không quản lý kiến trúc thì chỉ có tiền mất tật mang.\"\n}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -96,
+        0
+      ],
+      "id": "f243da4d-4307-405f-a67d-38ba4878cdff",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json.output || '';\nconst originalItem = $('If').first().json; // Giữ lại toàn bộ thông tin gốc từ database (id, title, category...)\n\nlet rewritten;\ntry {\n    // Ép kiểu chuỗi trả về từ AI thành JSON\n    rewritten = JSON.parse(aiOutput.replace(/```json|```/g, '').trim());\n} catch(e) {\n    // Fallback: Nếu AI lỗi format, giữ nguyên bản gốc để workflow không chết\n    rewritten = {\n        video_hook: originalItem.video_hook,\n        video_script: originalItem.video_script\n    };\n    console.log('[!] AI viết lại lỗi JSON, tự động dùng lại script cũ.');\n}\n\nreturn [{\n    json: {\n        ...originalItem,\n        video_hook: rewritten.video_hook || originalItem.video_hook,\n        video_script: rewritten.video_script || originalItem.video_script\n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        -16
+      ],
+      "id": "fdd57b03-d333-4bfb-8dc4-fc2ed9fe16bf",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -96,
+        208
+      ],
+      "id": "3fd24de7-765d-4fd0-bd35-bee1b8f260d9",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7QR8ilZfH8PIwb2u",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "AI sinh metadata YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Flash (metadata)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI sinh metadata YouTube",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI sinh metadata YouTube": {
+      "main": [
+        [
+          {
+            "node": "Parse & fallback metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & fallback metadata": {
+      "main": [
+        [
+          {
+            "node": "Upload YouTube Shorts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload YouTube Shorts": {
+      "main": [
+        [
+          {
+            "node": "Extract YouTube URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract YouTube URL": {
+      "main": [
+        [
+          {
+            "node": "Insert vào published_videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Check Flask OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Flask OK": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert bài Reject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e9208e72-7706-45aa-b8c6-43d99825aa31",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "11397e4e8e2818fcf7ddb2e184892aa08ed7e1e5cef83e8a7589390bc2b4c74c"
+  },
+  "id": "PP6GV5k6VxzdD4VU",
+  "tags": []
+}
