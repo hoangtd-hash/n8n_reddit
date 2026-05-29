@@ -4,7 +4,7 @@ import time
 from flask import Flask, request, jsonify, send_file
 import traceback
 
-from config import OUTPUT_DIR, WORDS_PER_SUB_GROUP
+from config import OUTPUT_DIR, WORDS_PER_SUB_GROUP, SUB_MODE
 import tts
 import transcriber
 import renderer
@@ -72,12 +72,13 @@ def render():
 
             # Module 3: Whisper Forced Alignment
             print(f" -> Đang gọi module Whisper Local (Forced Alignment)...")
-            transcriber.generate_local_whisper_srt(audio_path, srt_path, text, WORDS_PER_SUB_GROUP)
+            result_path = transcriber.generate_local_whisper_srt(audio_path, srt_path, text, WORDS_PER_SUB_GROUP)
+            sub_file = os.path.basename(result_path)  # .srt hoặc .ass tùy SUB_MODE
 
             # Module 4: Render từng phân cảnh bằng GPU Mac
             duration = renderer.get_audio_duration(audio_path)
-            print(f" -> Đang gọi module FFmpeg Render (GPU)...")
-            renderer.render_single_clip(raw_clip, audio_clip, srt_file, norm_clip, duration, job_dir)
+            print(f" -> Đang gọi module FFmpeg Render (GPU) [{SUB_MODE} mode]...")
+            renderer.render_single_clip(raw_clip, audio_clip, sub_file, norm_clip, duration, job_dir)
 
             input_txt_content += f"file '{norm_clip}'\n"
 

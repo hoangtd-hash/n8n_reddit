@@ -1,9 +1,8 @@
 import re
-import stable_whisper # Đổi từ whisper sang stable_whisper
+import stable_whisper
 from config import WHISPER_MODEL_NAME
 
 print(f"[*] Đang nạp model Stable-Whisper Local '{WHISPER_MODEL_NAME}' vào RAM...")
-# Load model bằng cấu trúc của stable_whisper
 whisper_model = stable_whisper.load_model(WHISPER_MODEL_NAME)
 
 PUNCT_STRONG = re.compile(r'[.?!…]$')
@@ -14,13 +13,13 @@ def flush(chunk, groups):
         groups.append((
             chunk[0]["start"],
             chunk[-1]["end"],
-            "".join(c.get("word", "") for c in chunk).strip(),
+            list(chunk),  # giữ list word objects để dùng cho cả SRT lẫn ASS
         ))
         chunk.clear()
 
 def group_words_in_segment(words, n):
     if n == 1:
-        return [(w["start"], w["end"], w.get("word", "").strip()) for w in words if w.get("word", "").strip()]
+        return [(w["start"], w["end"], [w]) for w in words if w.get("word", "").strip()]
 
     groups, chunk = [], []
     half_n = max(1, n // 2)
@@ -46,26 +45,67 @@ def to_srt_time(seconds):
     ms = int(round((seconds - int(seconds)) * 1000))
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
+def to_ass_time(seconds):
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    cs = int(round((seconds - int(seconds)) * 100))
+    return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
+
 def generate_local_whisper_srt(audio_path, srt_path, original_text, n):
     """
-    SỬ DỤNG FORCED ALIGNMENT:
-    Ép Whisper khớp timeline dựa trên TEXT GỐC, không tự nhận diện chữ nữa.
+    Tự chọn SRT hay ASS theo SUB_MODE trong config.py:
+    - classic  : SRT, chữ trắng to, viền đen
+    - karaoke  : ASS, highlight từng từ màu vàng
     """
-    # Gọi hàm align thay vì transcribe, ném thẳng original_text vào đối chiếu
+    from config import SUB_MODE, SUB_FONT, SUB_SIZE, SUB_MARGIN_V
+
     result = whisper_model.align(audio_path, original_text, language="vi")
-    
-    # Ép kết quả về dạng dict cấu trúc chuẩn để giữ nguyên thuật toán băm sub cũ
     result_dict = result.to_dict()
     segments = result_dict.get("segments", [])
-    
+
     all_groups = []
     for seg in segments:
         words = seg.get("words", [])
         if not words: continue
         all_groups.extend(group_words_in_segment(words, n))
-        
-    with open(srt_path, "w", encoding="utf-8") as f:
-        for idx, (start, end, text) in enumerate(all_groups, 1):
-            s = to_srt_time(start)
-            e = to_srt_time(end)
-            f.write(f"{idx}\n{s} --> {e}\n{text}\n\n")
+
+    if SUB_MODE == "karaoke":
+        ass_path = srt_path.replace(".srt", ".ass")
+        ass_header = f"""\
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 0
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,{SUB_FONT},{SUB_SIZE},&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,1,0,0,0,100,100,0,0,1,0.8,0,2,10,10,{SUB_MARGIN_V},1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+        with open(ass_path, "w", encoding="utf-8") as f:
+            f.write(ass_header)
+            for start, end, word_list in all_groups:
+                s = to_ass_time(start)
+                e = to_ass_time(end)
+                line = ""
+                for w in word_list:
+                    word_text = w.get("word", "").strip()
+                    if not word_text: continue
+                    duration_cs = int(round((w.get("end", end) - w.get("start", start)) * 100))
+                    line += f"{{\\k{duration_cs}}}{word_text} "
+                f.write(f"Dialogue: 0,{s},{e},Default,,0,0,0,,{line.strip()}\n")
+        return ass_path
+
+    else:
+        # classic SRT
+        with open(srt_path, "w", encoding="utf-8") as f:
+            for idx, (start, end, word_list) in enumerate(all_groups, 1):
+                text = "".join(w.get("word", "") for w in word_list).strip()
+                s = to_srt_time(start)
+                e = to_srt_time(end)
+                f.write(f"{idx}\n{s} --> {e}\n{text}\n\n")
+        return srt_path
