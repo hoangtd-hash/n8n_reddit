@@ -1,5 +1,5 @@
 {
-  "name": "PHASE 3 CLEAN",
+  "name": "PHASE 4",
   "nodes": [
     {
       "parameters": {
@@ -38,7 +38,7 @@
       "typeVersion": 4.4,
       "position": [
         1280,
-        104
+        112
       ],
       "id": "0415031a-4d06-4354-be93-078b767fca0e",
       "name": "HTTP Request",
@@ -59,7 +59,7 @@
       "typeVersion": 3.1,
       "position": [
         928,
-        104
+        112
       ],
       "id": "ee6aaf33-38d8-42fe-9206-42899b3b9cb2",
       "name": "AI Agent"
@@ -92,7 +92,7 @@
       "typeVersion": 2,
       "position": [
         1504,
-        104
+        112
       ],
       "id": "2fc0fd2a-9d24-4443-965e-790989a77033",
       "name": "Code in JavaScript1"
@@ -179,7 +179,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const aiOutput = $input.first().json.output || '';\n\nlet meta;\ntry {\n  meta = JSON.parse(aiOutput.replace(/```json|```/g, '').trim());\n} catch(e) {\n  const hook = $('Execute a SQL query').first().json.video_hook || '';\n  meta = {\n    title: hook.substring(0, 68),\n    description: 'Video AI mới nhất. #Shorts #AIVietNam #CongNgheAI #AI',\n    tags: ['AI', 'Trí tuệ nhân tạo', 'Công nghệ', 'Shorts', 'AIVietNam']\n  };\n  console.log('[!] AI trả sai format JSON, dùng fallback.');\n}\n\nconst binaryData = $('HTTP Request2').first().binary;\n\nreturn [{\n  json: {\n    article_id:  $('Execute a SQL query').first().json.id,\n    title:       (meta.title || '').substring(0, 100),\n    description: meta.description || '',\n    tags:        Array.isArray(meta.tags) ? meta.tags : []\n  },\n  binary: binaryData\n}];"
+        "jsCode": "const aiOutput = $input.first().json.output || '';\n// Lấy đúng bài duy nhất được duyệt render từ node If (hoặc node Parse Script Mới)\nconst selectedItem = $('If').first().json; \n\nlet meta;\ntry {\n  meta = JSON.parse(aiOutput.replace(/```json|```/g, '').trim());\n} catch(e) {\n  // Fallback nếu AI viết tiêu đề lỗi JSON thì lấy hook của bài được chọn làm tiêu đề\n  const hook = selectedItem.video_hook || '';\n  meta = {\n    title: hook.substring(0, 68),\n    description: 'Video AI mới nhất. #Shorts #AIVietNam #CongNgheAI #AI',\n    tags: ['AI', 'Trí tuệ nhân tạo', 'Công nghệ', 'Shorts', 'AIVietNam']\n  };\n  print('[!] AI trả sai format JSON, dùng fallback.');\n}\n\nconst binaryData = $('HTTP Request2').first().binary;\n\nreturn [{\n  json: {\n    article_id:  selectedItem.id, // ID chuẩn của bài được chọn\n    ai_score:    selectedItem.ai_score,\n    ai_reason:   selectedItem.ai_reason,\n    title:       (meta.title || '').substring(0, 100), // Lấy từ node AI viết tiêu đề\n    description: meta.description || '',               // Lấy từ node AI viết tiêu đề\n    tags:        Array.isArray(meta.tags) ? meta.tags : [] // Lấy từ node AI viết tiêu đề\n  },\n  binary: binaryData\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -268,11 +268,11 @@
             },
             {
               "fieldId": "ai_score",
-              "fieldValue": "={{ $('Code in JavaScript2').first().json.ai_score }}"
+              "fieldValue": "={{ $('Parse & fallback metadata').item.json.ai_score }}"
             },
             {
               "fieldId": "ai_reason",
-              "fieldValue": "={{ $('Code in JavaScript2').first().json.ai_reason }}"
+              "fieldValue": "={{ $('Parse & fallback metadata').item.json.ai_reason }}"
             }
           ]
         }
@@ -336,7 +336,7 @@
       "typeVersion": 2.6,
       "position": [
         -1120,
-        252
+        256
       ],
       "id": "295c3d6f-abed-4d9d-a040-e90df7b5ac80",
       "name": "Execute a SQL query",
@@ -357,7 +357,7 @@
       "typeVersion": 3.1,
       "position": [
         -896,
-        252
+        256
       ],
       "id": "662175a3-5cc4-4139-92a7-94b70c95c73c",
       "name": "AI Agent1",
@@ -391,7 +391,7 @@
       "typeVersion": 2,
       "position": [
         -544,
-        252
+        256
       ],
       "id": "5d267ad3-c603-42f7-8c2b-025d01eafa47",
       "name": "Code in JavaScript2"
@@ -425,7 +425,7 @@
       "typeVersion": 2.3,
       "position": [
         -320,
-        252
+        256
       ],
       "id": "f746818e-ecfe-470a-98e9-31ef61e18956",
       "name": "If"
@@ -488,7 +488,7 @@
       "typeVersion": 1.3,
       "position": [
         -1344,
-        252
+        256
       ],
       "id": "97814ce7-f9f5-4530-9974-9334e4c4e117",
       "name": "Schedule Trigger1"
@@ -506,7 +506,8 @@
         0
       ],
       "id": "f243da4d-4307-405f-a67d-38ba4878cdff",
-      "name": "AI Agent2"
+      "name": "AI Agent2",
+      "retryOnFail": true
     },
     {
       "parameters": {
@@ -834,12 +835,12 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "e9208e72-7706-45aa-b8c6-43d99825aa31",
+  "versionId": "e869a145-46ed-4e36-a5f9-91b3bfea0f9f",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "11397e4e8e2818fcf7ddb2e184892aa08ed7e1e5cef83e8a7589390bc2b4c74c"
