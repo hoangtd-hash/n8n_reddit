@@ -20,11 +20,6 @@ def get_audio_duration(audio_path):
     except: return 10.0
 
 def render_single_clip(raw_clip, audio_clip, sub_file, norm_clip, duration, job_dir=None):
-    """
-    Render một phân cảnh.
-    SUB_MODE = "classic"  → subtitles filter, SRT, chữ trắng to
-    SUB_MODE = "karaoke"  → ass filter, ASS, highlight từng từ
-    """
     cwd = job_dir or OUTPUT_DIR
 
     if SUB_MODE == "karaoke":
@@ -32,7 +27,6 @@ def render_single_clip(raw_clip, audio_clip, sub_file, norm_clip, duration, job_
             f'ass={sub_file}:fontsdir={FONTS_DIR}'
         )
     else:
-        # classic mode
         sub_filter = (
             f'subtitles={sub_file}:fontsdir={FONTS_DIR}:'
             f'force_style=\'Fontname={SUB_FONT},Fontsize={SUB_SIZE},Bold=1,'

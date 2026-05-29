@@ -1,9 +1,17 @@
 import re
+import torch
 import stable_whisper
 from config import WHISPER_MODEL_NAME
 
-print(f"[*] Đang nạp model Stable-Whisper Local '{WHISPER_MODEL_NAME}' vào RAM...")
-whisper_model = stable_whisper.load_model(WHISPER_MODEL_NAME)
+_whisper_model = None
+
+def get_model():
+    global _whisper_model
+    if _whisper_model is None:
+        device = "mps" if torch.backends.mps.is_available() else "cpu"
+        print(f"[*] Đang nạp model Stable-Whisper '{WHISPER_MODEL_NAME}' lên {device.upper()}...")
+        _whisper_model = stable_whisper.load_model(WHISPER_MODEL_NAME, device=device)
+    return _whisper_model
 
 PUNCT_STRONG = re.compile(r'[.?!…]$')
 PUNCT_WEAK   = re.compile(r'[,;:]$')
@@ -13,7 +21,7 @@ def flush(chunk, groups):
         groups.append((
             chunk[0]["start"],
             chunk[-1]["end"],
-            list(chunk),  # giữ list word objects để dùng cho cả SRT lẫn ASS
+            list(chunk),
         ))
         chunk.clear()
 
@@ -53,14 +61,10 @@ def to_ass_time(seconds):
     return f"{h}:{m:02d}:{s:02d}.{cs:02d}"
 
 def generate_local_whisper_srt(audio_path, srt_path, original_text, n):
-    """
-    Tự chọn SRT hay ASS theo SUB_MODE trong config.py:
-    - classic  : SRT, chữ trắng to, viền đen
-    - karaoke  : ASS, highlight từng từ màu vàng
-    """
     from config import SUB_MODE, SUB_FONT, SUB_SIZE, SUB_MARGIN_V
 
-    result = whisper_model.align(audio_path, original_text, language="vi")
+    model = get_model()
+    result = model.align(audio_path, original_text, language="vi")
     result_dict = result.to_dict()
     segments = result_dict.get("segments", [])
 
@@ -99,9 +103,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     line += f"{{\\k{duration_cs}}}{word_text} "
                 f.write(f"Dialogue: 0,{s},{e},Default,,0,0,0,,{line.strip()}\n")
         return ass_path
-
     else:
-        # classic SRT
         with open(srt_path, "w", encoding="utf-8") as f:
             for idx, (start, end, word_list) in enumerate(all_groups, 1):
                 text = "".join(w.get("word", "") for w in word_list).strip()

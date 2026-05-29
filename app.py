@@ -1,8 +1,9 @@
 import os
 import re
 import time
-from flask import Flask, request, jsonify, send_file
 import traceback
+from concurrent.futures import ThreadPoolExecutor
+from flask import Flask, request, jsonify, send_file
 
 from config import OUTPUT_DIR, WORDS_PER_SUB_GROUP, SUB_MODE
 import tts
@@ -12,11 +13,6 @@ import renderer
 app = Flask(__name__)
 
 def make_folder_name(clips):
-    """
-    Lấy text của clip đầu tiên, bốc 5 từ đầu làm tên thư mục.
-    Xóa ký tự đặc biệt, thay space bằng _, giới hạn 40 ký tự.
-    Ví dụ: "AI đang thay thế lập trình viên" → "AI_đang_thay_thế_lập"
-    """
     raw = clips[0].get('text', '') if clips else ''
     words = raw.strip().split()[:5]
     name = '_'.join(words)
@@ -25,6 +21,25 @@ def make_folder_name(clips):
     timestamp = str(int(time.time()))
     return f"{name}_{timestamp}" if name else f"output_{timestamp}"
 
+def process_io_task(idx, clip, job_dir):
+    try:
+        url = clip.get('url')
+        text = clip.get('text', '')
+        
+        if not url:
+            return idx, None, None, text, "Thiếu URL video"
+
+        raw_clip = f"clip_{idx}.mp4"
+        audio_clip = f"voice_{idx}.mp3"
+        raw_clip_path = os.path.join(job_dir, raw_clip)
+        audio_path = os.path.join(job_dir, audio_clip)
+
+        renderer.download_video(url, raw_clip_path)
+        tts.get_zalo_voice(text, audio_path)
+
+        return idx, raw_clip, audio_clip, text, None
+    except Exception as e:
+        return idx, None, None, None, str(e)
 
 @app.route('/render', methods=['POST'])
 def render():
@@ -40,55 +55,49 @@ def render():
         if not clips:
             return jsonify({"status": "error", "message": "Không tìm thấy danh sách phân cảnh"}), 400
 
-        # Tạo thư mục riêng cho job này
         folder_name = make_folder_name(clips)
         job_dir = os.path.join(OUTPUT_DIR, folder_name)
         os.makedirs(job_dir, exist_ok=True)
-        print(f"[+] Khởi động render → thư mục: {folder_name} ({len(clips)} phân cảnh)")
+        print(f"\n[+] Khởi động render → thư mục: {folder_name} ({len(clips)} phân cảnh)")
+
+        # Module 1 & 2: Chạy song song I/O
+        print(f"[+] Bắt đầu I/O song song (Download + TTS)...")
+        io_results = []
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [executor.submit(process_io_task, idx, clip, job_dir) for idx, clip in enumerate(clips)]
+            for future in futures:
+                io_results.append(future.result())
+
+        io_results.sort(key=lambda x: x[0])
 
         input_txt_content = ""
 
-        for idx, clip in enumerate(clips):
-            url  = clip.get('url')
-            text = clip.get('text', '')
-            if not url: continue
-
-            raw_clip   = f"clip_{idx}.mp4"
-            audio_clip = f"voice_{idx}.mp3"
-            norm_clip  = f"norm_{idx}.mp4"
-            srt_file   = f"sub_{idx}.srt"
+        # Module 3 & 4: Chạy tuần tự Compute để không tràn tài nguyên
+        for res in io_results:
+            idx, raw_clip, audio_clip, text, err = res
+            if err:
+                return jsonify({"status": "error", "message": f"Lỗi IO clip {idx}: {err}"}), 500
+            if not raw_clip: continue
 
             raw_clip_path = os.path.join(job_dir, raw_clip)
             audio_path    = os.path.join(job_dir, audio_clip)
+            norm_clip     = f"norm_{idx}.mp4"
+            srt_file      = f"sub_{idx}.srt"
             srt_path      = os.path.join(job_dir, srt_file)
 
-            # Module 1: Tải video
-            print(f" -> [{idx+1}/{len(clips)}] Đang tải video...")
-            renderer.download_video(url, raw_clip_path)
-
-            # Module 2: Tạo giọng nói
-            print(f" -> Đang gọi module TTS...")
-            tts.get_zalo_voice(text, audio_path)
-
-            # Module 3: Whisper Forced Alignment
-            print(f" -> Đang gọi module Whisper Local (Forced Alignment)...")
+            print(f" -> [{idx+1}/{len(clips)}] Đang chạy Whisper & Render FFmpeg...")
             result_path = transcriber.generate_local_whisper_srt(audio_path, srt_path, text, WORDS_PER_SUB_GROUP)
-            sub_file = os.path.basename(result_path)  # .srt hoặc .ass tùy SUB_MODE
+            sub_file = os.path.basename(result_path)
 
-            # Module 4: Render từng phân cảnh bằng GPU Mac
             duration = renderer.get_audio_duration(audio_path)
-            print(f" -> Đang gọi module FFmpeg Render (GPU) [{SUB_MODE} mode]...")
             renderer.render_single_clip(raw_clip, audio_clip, sub_file, norm_clip, duration, job_dir)
 
             input_txt_content += f"file '{norm_clip}'\n"
 
-        # Module 5: Ghép phim tổng hợp
+        # Module 5: Ghép phim
         final_output = "final_output.mp4"
         print(f"[+] Đang gộp toàn bộ phân cảnh thành {final_output}...")
         renderer.concat_all_clips(input_txt_content, final_output, job_dir)
-
-        # Giữ nguyên file trung gian để tham khảo khi test
-        # Sau khi test xong sẽ thêm lệnh xóa ở đây
 
         final_path = os.path.join(job_dir, final_output)
         print(f"[✔] Render hoàn tất: {final_path}")
@@ -102,17 +111,10 @@ def render():
         print(f"[❌] Lỗi hệ thống: {traceback.format_exc()}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/get_video', methods=['GET'])
 def get_video():
-    """
-    Endpoint cho n8n tải file video về dạng binary.
-    n8n gọi: GET http://host.docker.internal:9000/get_video?path=/đường/dẫn/final_output.mp4
-    Flask đọc file rồi trả về binary stream — không cần Read File node trong Docker.
-    """
     try:
         video_path = request.args.get('path', '')
-
         if not video_path:
             return jsonify({"status": "error", "message": "Thiếu tham số ?path="}), 400
 
@@ -131,7 +133,5 @@ def get_video():
         print(f"[❌] Lỗi get_video: {traceback.format_exc()}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
-# Luôn để block này ở cuối cùng của file
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=9000)
