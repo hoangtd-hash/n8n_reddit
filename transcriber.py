@@ -8,7 +8,8 @@ _whisper_model = None
 def get_model():
     global _whisper_model
     if _whisper_model is None:
-        device = "mps" if torch.backends.mps.is_available() else "cpu"
+        # Bắt buộc dùng CPU vì PyTorch MPS trên Mac chưa support float64 cho thuật toán DTW của Whisper
+        device = "cpu" 
         print(f"[*] Đang nạp model Stable-Whisper '{WHISPER_MODEL_NAME}' lên {device.upper()}...")
         _whisper_model = stable_whisper.load_model(WHISPER_MODEL_NAME, device=device)
     return _whisper_model

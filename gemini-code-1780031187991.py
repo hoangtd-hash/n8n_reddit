@@ -2,13 +2,8 @@ import asyncio
 import re
 import edge_tts
 
-# ── CẤU HÌNH GIỌNG EDGE TTS ──
-# vi-VN-HoaiMyNeural  : Nữ, giọng Bắc
-# vi-VN-NamMinhNeural : Nam, giọng Bắc
 VOICE = "vi-VN-HoaiMyNeural"
 
-# ── BẢNG CHUẨN HÓA TỪ VIẾT TẮT ──
-# Thêm từ mới vào đây nếu TTS đọc sai
 REPLACEMENTS = {
     "ChatGPT":      "Chat-GPT",
     "GPT-4":        "GPT bốn",
@@ -23,11 +18,11 @@ REPLACEMENTS = {
     "RAG":          "R A G",
     "API":          "A P I",
     "CEO":          "C E O",
-    "AI":           "AI",        # giữ nguyên, Edge đọc được
+    "AI":           "AI", 
     "AGI":          "A G I",
     "GPU":          "G P U",
     "CPU":          "C P U",
-    "SaaS":         "Sát",       # hoặc "S A A S" tùy bạn thích
+    "SaaS":         "Sát", 
     "USD":          "đô la Mỹ",
     "Reddit":       "Reddit",
     "YouTube":      "YouTube",
@@ -36,16 +31,6 @@ REPLACEMENTS = {
 }
 
 def normalize_text(text: str) -> str:
-    # Xóa dấu ngoặc kép các loại
-    text = re.sub(r'[""\"\'""'']', ' ', text)
-    # Xóa dấu ngoặc đơn/kép còn sót
-    text = re.sub(r'[«»]', ' ', text)
-    # Dọn khoảng trắng thừa
-    text = re.sub(r'\s+', ' ', text).strip()
-    
-    #Thay thế các từ viết tắt/tên riêng trước khi đưa vào TTS.
-    #Dùng word boundary \\b để tránh thay nhầm (vd: 'API' trong 'RAPID').
-    
     for word, replacement in REPLACEMENTS.items():
         text = re.sub(rf'\b{re.escape(word)}\b', replacement, text)
     return text
@@ -55,16 +40,8 @@ async def _synthesize(text: str, audio_path: str):
     await communicate.save(audio_path)
 
 def get_zalo_voice(text, audio_path):
-    
-    #Đang dùng Edge TTS (Microsoft) thay thế Zalo trong thời gian hết quota.
-    #Giữ nguyên tên hàm để không phải sửa app.py.
-    #Khi quota Zalo hồi phục: bọc block Edge TTS vào triple-quote,
-    #rồi xóa triple-quote bao quanh block Zalo bên dưới là xong.
-
     cleaned = normalize_text(text)
-    print(f"   [->] Edge TTS đang tổng hợp giọng ({VOICE})...")
     asyncio.run(_synthesize(cleaned, audio_path))
-    print(f"   [✔] Edge TTS xuất audio thành công: {audio_path}")
     return True
 
 """
@@ -135,4 +112,4 @@ def get_zalo_voice(text, audio_path):
         raise Exception("Zalo API Lỗi: Sai apikey. Check lại file config.py")
     else:
         raise Exception(f"Zalo API Lỗi (code {error_code}): {res_json.get('error_message')}")
-        """
+"""

@@ -16,5 +16,5 @@ SUB_MODE = "classic"
 
 # ── CẤU HÌNH STYLE SUB ──
 SUB_FONT     = "Montserrat"
-SUB_SIZE     = 24       # classic mode
+SUB_SIZE     = 30       # classic mode
 SUB_MARGIN_V = 140      # khoảng cách từ dưới lên

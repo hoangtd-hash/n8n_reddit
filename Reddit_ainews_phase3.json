@@ -1,28 +1,17 @@
 {
-  "name": "PHASE 2 - YouTube Upload (table: published_videos)",
+  "name": "PHASE 3 CLEAN",
   "nodes": [
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        -896,
-        272
-      ],
-      "id": "4061c19e-86bb-404d-bfed-1794d5350802",
-      "name": "When clicking ‘Execute workflow’"
-    },
-    {
       "parameters": {
-        "jsCode": "const allItems = $input.all();\nconst output = [];\n\nfor (const item of allItems) {\n    const script = item.json.video_script || \"\";\n    const matches = script.match(/\\[(.*?)\\]/g) || [];\n    const brolls = matches.map(x =>\n        x\n        .replace(/[\\[\\]]/g,'')\n        .replace(/^B-roll:\\s*/i,'')\n        .trim()\n    );\n\n    let index = 0; // Bộ đếm số thứ tự clip\n    for (const scene of brolls) {\n        if (!scene) continue;\n        output.push({\n            json:{\n                id: item.json.id,\n                title: item.json.title,\n                category: item.json.category,\n                broll: scene,\n                clip_index: index++ // Gán ID để đặt tên file vật lý\n            }\n        });\n    }\n}\n\nreturn output;"
+        "jsCode": "const allItems = $input.all();\n// Chỉ lấy bài có _action = render (item đầu tiên từ If True)\nconst item = allItems[0];\nconst output = [];\n\nconst script = item.json.video_script || \"\";\nconst matches = script.match(/\\[(.*?)\\]/g) || [];\nconst brolls = matches.map(x =>\n    x\n    .replace(/[\\[\\]]/g,'')\n    .replace(/^B-roll:\\s*/i,'')\n    .trim()\n);\n\nlet index = 0;\nfor (const scene of brolls) {\n    if (!scene) continue;\n    output.push({\n        json:{\n            id: item.json.id,\n            title: item.json.title,\n            category: item.json.category,\n            ai_score: item.json.ai_score,\n            ai_reason: item.json.ai_reason,\n            broll: scene,\n            clip_index: index++\n        }\n    });\n}\n\nreturn output;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -544,
-        272
+        -288,
+        80
       ],
-      "id": "4a06d896-b7b7-4b6f-82f8-baa3295c6249",
+      "id": "e1f6e10b-5518-4284-86b9-51f80cab7188",
       "name": "Code in JavaScript"
     },
     {
@@ -32,10 +21,10 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        -336,
-        256
+        -80,
+        80
       ],
-      "id": "e9b240b0-a838-4f27-8881-8189e38b9d35",
+      "id": "7cd06468-62b4-43d6-a41b-f8392ce57636",
       "name": "Loop Over Items"
     },
     {
@@ -48,10 +37,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        240,
-        272
+        480,
+        80
       ],
-      "id": "2bdc5ba3-cf6a-4bba-86bf-1cf7a38f252d",
+      "id": "0415031a-4d06-4354-be93-078b767fca0e",
       "name": "HTTP Request",
       "credentials": {
         "httpHeaderAuth": {
@@ -69,10 +58,10 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        -112,
-        272
+        128,
+        80
       ],
-      "id": "6e7c3ca8-3665-4162-9f3f-819b5f49c9c6",
+      "id": "ee6aaf33-38d8-42fe-9206-42899b3b9cb2",
       "name": "AI Agent"
     },
     {
@@ -83,10 +72,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        -112,
-        528
+        128,
+        336
       ],
-      "id": "8f634c60-cc82-49e2-a9d5-1f87739d9523",
+      "id": "26646403-c025-4da8-b2a9-b83b22c89a8a",
       "name": "Google Gemini Chat Model",
       "credentials": {
         "googlePalmApi": {
@@ -102,10 +91,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        464,
-        272
+        704,
+        80
       ],
-      "id": "629412ec-9b49-4346-8d22-518420cc681f",
+      "id": "2fc0fd2a-9d24-4443-965e-790989a77033",
       "name": "Code in JavaScript1"
     },
     {
@@ -115,24 +104,24 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        608,
-        272
+        848,
+        80
       ],
-      "id": "ae4cc74f-b686-4a5a-a190-625fa44de295",
+      "id": "bb8c193f-8dc5-4053-b18f-8227eab4b1bc",
       "name": "Wait",
       "webhookId": "bbe51e48-a140-4f67-ac92-9b95759ecfd6"
     },
     {
       "parameters": {
-        "jsCode": "// 1. Bốc toàn bộ link video thành phẩm sau vòng lặp\nconst videoClips = $input.all();\n\n// 2. Bốc toàn bộ các hàng dữ liệu gốc từ Supabase\nconst allRows = $('select_rows').all();\n\nlet allNarrations = [];\n\nallRows.forEach(row => {\n    const hook = row.json.video_hook || \"\";\n    const script = row.json.video_script || \"\";\n    \n    // Tách các đoạn thoại bằng cách bỏ phần nằm trong thẻ [B-roll: ...]\n    let narrations = script.split(/\\[.*?\\]/s).map(t => t.trim()).filter(t => t.length > 0);\n    \n    // Nếu có hook, gộp câu hook vào ngay đầu câu thoại đầu tiên của bài đó\n    if (hook && narrations.length > 0) {\n        narrations[0] = hook + \" \" + narrations[0];\n    }\n    \n    allNarrations = allNarrations.concat(narrations);\n});\n\n// 3. Ráp nối 1:1 theo đúng thứ tự xuất hiện\nconst finalClips = videoClips.map((item, idx) => {\n    return {\n        url: item.json.video_url,\n        text: allNarrations[idx] || \"\" // Khớp đúng câu thoại đã có hook\n    };\n});\n\nreturn [{\n    json: {\n        clips: finalClips\n    }\n}];"
+        "jsCode": "// 1. Bốc toàn bộ link video thành phẩm sau vòng lặp\nconst videoClips = $input.all();\n\n// 2. Chỉ lấy item đi qua nhánh TRUE của If\nconst allRows = $('If').all(0);\n\nlet allNarrations = [];\n\nallRows.forEach(row => {\n\n    const hook = row.json.video_hook || \"\";\n    const script = row.json.video_script || \"\";\n    \n    // Tách các đoạn thoại bằng cách bỏ phần nằm trong thẻ [B-roll: ...]\n    let narrations = script\n        .split(/\\[.*?\\]/g)\n        .map(t => t.trim())\n        .filter(t => t.length > 0);\n    \n    // Nếu có hook, gộp hook vào đầu narration đầu tiên\n    if (hook && narrations.length > 0) {\n        narrations[0] = hook + \" \" + narrations[0];\n    }\n    \n    allNarrations = allNarrations.concat(narrations);\n});\n\n// 3. Ráp nối clip + narration theo đúng thứ tự\nconst finalClips = videoClips.map((item, idx) => {\n    return {\n        url: item.json.video_url,\n        text: allNarrations[idx] || \"\"\n    };\n});\n\nreturn [{\n    json: {\n        clips: finalClips\n    }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        0,
-        0
+        240,
+        -192
       ],
-      "id": "2714aee3-3f94-4cb0-b7ae-9fed046eca8c",
+      "id": "164d35a1-379b-4e56-87c6-b2225fdeea71",
       "name": "Code in JavaScript3"
     },
     {
@@ -147,74 +136,25 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        256,
-        0
+        496,
+        -192
       ],
-      "id": "c61230ca-425f-43f9-8e91-8f9d0f0e2eed",
+      "id": "57133646-72d7-4144-8e45-96729add4a2b",
       "name": "HTTP Request1"
     },
     {
       "parameters": {
-        "operation": "select",
-        "schema": {
-          "__rl": true,
-          "value": "public",
-          "mode": "list",
-          "cachedResultName": "public"
-        },
-        "table": {
-          "__rl": true,
-          "value": "articles",
-          "mode": "list",
-          "cachedResultName": "articles"
-        },
-        "limit": 1,
-        "where": {
-          "values": [
-            {
-              "column": "id",
-              "value": "1tpvbwy"
-            }
-          ]
-        },
-        "sort": {
-          "values": [
-            {
-              "column": "published_at",
-              "direction": "DESC"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -720,
-        272
-      ],
-      "id": "634acfd2-05d6-4e29-aa1a-afef4fef0d90",
-      "name": "select_rows",
-      "credentials": {
-        "postgres": {
-          "id": "ebH3q7LkplGzOS9h",
-          "name": "Postgres account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "promptType": "define",
-        "text": "=Bạn là chuyên gia SEO YouTube tại Việt Nam, chuyên tối ưu metadata cho Shorts công nghệ/AI.\n\nDựa trên nội dung video sau, hãy tạo metadata YouTube Shorts tối ưu:\n\nHook (3 giây đầu): {{ $('select_rows').first().json.video_hook }}\nNội dung đầy đủ: {{ $('select_rows').first().json.video_script }}\nDanh mục: {{ $('select_rows').first().json.category }}\n\nQuy tắc bắt buộc:\n- title: Tối đa 70 ký tự. Bắt đầu bằng emoji phù hợp. Lấy ý từ hook, viết lại súc tích hơn. KHÔNG clickbait.\n- description: 150-200 ký tự tóm tắt giá trị thực + hashtags ở cuối. Bao gồm #Shorts #AIVietNam và 4-5 hashtag nội dung.\n- tags: Mảng 10-12 từ khóa tiếng Việt + tiếng Anh, mix giữa broad (\"AI\", \"trí tuệ nhân tạo\") và specific (tên tool/sự kiện trong video).\n\nBẮT BUỘC trả về JSON thuần túy, KHÔNG dùng dấu ```:\n{\n  \"title\": \"...\",\n  \"description\": \"...\",\n  \"tags\": [\"tag1\", \"tag2\"]\n}",
+        "text": "=Bạn là chuyên gia SEO YouTube tại Việt Nam, chuyên tối ưu metadata cho Shorts công nghệ/AI.\n\nDựa trên nội dung video sau, hãy tạo metadata YouTube Shorts tối ưu:\n\nHook (3 giây đầu): {{ $('If').first().json.video_hook }}\nNội dung đầy đủ: {{ $('If').first().json.video_script }}\nDanh mục: {{ $('If').first().json.category }}\n\nQuy tắc bắt buộc:\n- title: Tối đa 70 ký tự. Bắt đầu bằng emoji phù hợp. Lấy ý từ hook, viết lại súc tích hơn. KHÔNG clickbait.\n- description: 150-200 ký tự tóm tắt giá trị thực + hashtags ở cuối. Bao gồm #Shorts #AIVietNam và 4-5 hashtag nội dung.\n- tags: Mảng 10-12 từ khóa tiếng Việt + tiếng Anh, mix giữa broad (\"AI\", \"trí tuệ nhân tạo\") và specific (tên tool/sự kiện trong video).\n\nBẮT BUỘC trả về JSON thuần túy, KHÔNG dùng dấu ```:\n{\n  \"title\": \"...\",\n  \"description\": \"...\",\n  \"tags\": [\"tag1\", \"tag2\"]\n}",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        928,
-        0
+        1168,
+        -192
       ],
-      "id": "2662ec17-35bf-4c9f-b6a6-ec66e8b71604",
+      "id": "f68f2b75-ff60-4380-8a82-ef02657599f4",
       "name": "AI sinh metadata YouTube"
     },
     {
@@ -225,10 +165,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
       "position": [
-        928,
-        176
+        1168,
+        -16
       ],
-      "id": "946efe01-9576-4a6d-b73c-eb36bbf88e83",
+      "id": "713d89ef-d0dc-4e7d-ac3a-d64c33e9742b",
       "name": "Gemini Flash (metadata)",
       "credentials": {
         "googlePalmApi": {
@@ -239,15 +179,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const aiOutput = $input.first().json.output || '';\n\nlet meta;\ntry {\n  meta = JSON.parse(aiOutput.replace(/```json|```/g, '').trim());\n} catch(e) {\n  const hook = $('select_rows').first().json.video_hook || '';\n  meta = {\n    title: hook.substring(0, 68),\n    description: 'Video AI mới nhất. #Shorts #AIVietNam #CongNgheAI #AI',\n    tags: ['AI', 'Trí tuệ nhân tạo', 'Công nghệ', 'Shorts', 'AIVietNam']\n  };\n  console.log('[!] AI trả sai format JSON, dùng fallback.');\n}\n\nconst binaryData = $('HTTP Request2').first().binary;\n\nreturn [{\n  json: {\n    article_id:  $('select_rows').first().json.id,\n    title:       (meta.title || '').substring(0, 100),\n    description: meta.description || '',\n    tags:        Array.isArray(meta.tags) ? meta.tags : []\n  },\n  binary: binaryData\n}];"
+        "jsCode": "const aiOutput = $input.first().json.output || '';\n\nlet meta;\ntry {\n  meta = JSON.parse(aiOutput.replace(/```json|```/g, '').trim());\n} catch(e) {\n  const hook = $('Execute a SQL query').first().json.video_hook || '';\n  meta = {\n    title: hook.substring(0, 68),\n    description: 'Video AI mới nhất. #Shorts #AIVietNam #CongNgheAI #AI',\n    tags: ['AI', 'Trí tuệ nhân tạo', 'Công nghệ', 'Shorts', 'AIVietNam']\n  };\n  console.log('[!] AI trả sai format JSON, dùng fallback.');\n}\n\nconst binaryData = $('HTTP Request2').first().binary;\n\nreturn [{\n  json: {\n    article_id:  $('Execute a SQL query').first().json.id,\n    title:       (meta.title || '').substring(0, 100),\n    description: meta.description || '',\n    tags:        Array.isArray(meta.tags) ? meta.tags : []\n  },\n  binary: binaryData\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1248,
-        0
+        1488,
+        -192
       ],
-      "id": "14fe0fb9-4809-4fb2-8d26-389c43b6687c",
+      "id": "c8b3cfeb-07bd-45d4-beb6-7c77c69e9d42",
       "name": "Parse & fallback metadata"
     },
     {
@@ -264,10 +204,10 @@
       "type": "n8n-nodes-base.youTube",
       "typeVersion": 1,
       "position": [
-        1552,
-        0
+        1792,
+        -192
       ],
-      "id": "4f0da947-09e3-472c-bc61-5a88edb63621",
+      "id": "67c1caf0-adbc-46cb-933b-f7ccb7412b48",
       "name": "Upload YouTube Shorts",
       "credentials": {
         "youTubeOAuth2Api": {
@@ -283,10 +223,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1792,
-        0
+        2032,
+        -192
       ],
-      "id": "949aeb7e-f47f-4c5f-87fc-d307ae3fe006",
+      "id": "238ecd36-1808-4041-b9e8-05b9bcfa560f",
       "name": "Extract YouTube URL"
     },
     {
@@ -325,6 +265,14 @@
             {
               "fieldId": "yt_uploaded_at",
               "fieldValue": "={{ $json.yt_uploaded_at }}"
+            },
+            {
+              "fieldId": "ai_score",
+              "fieldValue": "={{ $('Code in JavaScript2').first().json.ai_score }}"
+            },
+            {
+              "fieldId": "ai_reason",
+              "fieldValue": "={{ $('Code in JavaScript2').first().json.ai_reason }}"
             }
           ]
         }
@@ -332,10 +280,10 @@
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [
-        2016,
-        0
+        2256,
+        -192
       ],
-      "id": "19d9ad03-f7f0-4558-aedb-97358112a1b4",
+      "id": "3dd60edb-aac7-4451-bc18-c433d186e4dd",
       "name": "Insert vào published_videos",
       "credentials": {
         "supabaseApi": {
@@ -351,10 +299,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        464,
-        0
+        704,
+        -192
       ],
-      "id": "38eca31d-a0c7-4ce2-a9ce-acad6a95b266",
+      "id": "81e4fbc6-87aa-4d93-9a22-2fede6c9d153",
       "name": "Check Flask OK"
     },
     {
@@ -371,27 +319,180 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        672,
-        0
+        912,
+        -192
       ],
-      "id": "94d25426-6902-4688-b873-162639e7d1d8",
+      "id": "851bc676-eb4c-428c-90ae-2e15c3e8866b",
       "name": "HTTP Request2",
       "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT a.* FROM articles a\nLEFT JOIN published_videos p ON p.article_id = a.id\nWHERE p.id IS NULL\nORDER BY a.published_at DESC\nLIMIT 10",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1120,
+        96
+      ],
+      "id": "295c3d6f-abed-4d9d-a040-e90df7b5ac80",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "ebH3q7LkplGzOS9h",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Bạn là editor content chuyên đánh giá bài viết AI cho kênh Shorts Việt Nam.\n\nChấm điểm các bài viết sau từ 1-10 theo tiêu chí:\n- Tính thời sự, độ hot (3đ)\n- Giá trị thực tế với người xem Việt Nam (3đ)\n- Khả năng viral trên Shorts (2đ)\n- Nội dung đủ làm video 30-60 giây (2đ)\n\nDanh sách bài viết:\n{{ $input.all().map((item, i) => `[${i}] ID: ${item.json.id}\\nTiêu đề: ${item.json.title}\\nNội dung: ${item.json.video_script}`).join('\\n\\n') }}\n\nBẮT BUỘC trả về JSON thuần, không dùng ```:\n[{\"id\": \"bài_id\", \"score\": 8, \"reason\": \"lý do ngắn\"}, ...]",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -944,
+        96
+      ],
+      "id": "662175a3-5cc4-4139-92a7-94b70c95c73c",
+      "name": "AI Agent1",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -944,
+        288
+      ],
+      "id": "4ee6acf7-8ab7-468f-89e0-8745d7633a25",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7QR8ilZfH8PIwb2u",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.output || '';\nconst allRows = $('Execute a SQL query').all();\n\nlet scores;\ntry {\n  scores = JSON.parse(output.replace(/```json|```/g, '').trim());\n} catch(e) {\n  scores = [];\n}\n\nconst scored = allRows.map(item => {\n  const found = scores.find(s => s.id === item.json.id);\n  return {\n    ...item.json,\n    ai_score:  found ? found.score  : 0,\n    ai_reason: found ? found.reason : 'Không chấm được'\n  };\n});\n\n// Bài >= 8: đưa vào render, lấy bài cao nhất\nconst passed = scored\n  .filter(r => r.ai_score >= 8)\n  .sort((a, b) => b.ai_score - a.ai_score);\n\n// Bài < 6: reject luôn — không bao giờ bốc lại\nconst toReject = scored.filter(r => r.ai_score < 6);\n\nif (toReject.length > 0) {\n  console.log(`[!] Reject ${toReject.length} bài dưới 6 điểm`);\n}\n\nif (passed.length === 0) {\n  // Không có bài nào >= 8, reject bài xấu rồi dừng\n  return toReject.map(r => ({ json: { ...r, _action: 'reject' } }));\n}\n\nconst best = passed[0];\nconsole.log(`[✔] Chọn bài: \"${best.title}\" (${best.ai_score}đ)`);\n\nreturn [\n  { json: { ...best, _action: 'render' } },\n  ...toReject.map(r => ({ json: { ...r, _action: 'reject' } }))\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        96
+      ],
+      "id": "5d267ad3-c603-42f7-8c2b-025d01eafa47",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f320aceb-3590-46bb-ace2-606b33e901c0",
+              "leftValue": "={{ $json._action }}",
+              "rightValue": "render",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -496,
+        96
+      ],
+      "id": "f746818e-ecfe-470a-98e9-31ef61e18956",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "tableId": "published_videos",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "article_id",
+              "fieldValue": "={{ $json.id }}"
+            },
+            {
+              "fieldId": "yt_status",
+              "fieldValue": "={{ $json._action }}"
+            },
+            {
+              "fieldId": "ai_score",
+              "fieldValue": "={{ $json.ai_score }}"
+            },
+            {
+              "fieldId": "ai_reason",
+              "fieldValue": "={{ $json.ai_reason }}"
+            },
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        288
+      ],
+      "id": "c5d65081-25ee-49db-b23d-5fef5f36d223",
+      "name": "Insert bài Reject",
+      "credentials": {
+        "supabaseApi": {
+          "id": "vJ6gCw6ryNHjlp28",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1344,
+        96
+      ],
+      "id": "97814ce7-f9f5-4530-9974-9334e4c4e117",
+      "name": "Schedule Trigger1"
     }
   ],
   "pinData": {},
   "connections": {
-    "When clicking ‘Execute workflow’": {
-      "main": [
-        [
-          {
-            "node": "select_rows",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Code in JavaScript": {
       "main": [
         [
@@ -487,17 +588,6 @@
         ]
       ]
     },
-    "select_rows": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "HTTP Request2": {
       "main": [
         [
@@ -585,17 +675,90 @@
           }
         ]
       ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert bài Reject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "88200b21-2bad-4526-8401-6ef141d4feae",
+  "versionId": "dd461582-29e1-4afb-aec0-024b18f8ce0d",
   "meta": {
     "instanceId": "11397e4e8e2818fcf7ddb2e184892aa08ed7e1e5cef83e8a7589390bc2b4c74c"
   },
-  "id": "OBabEk6oF1lAV4hY",
+  "id": "PP6GV5k6VxzdD4VU",
   "tags": []
 }

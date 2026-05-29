@@ -31,7 +31,8 @@ def render_single_clip(raw_clip, audio_clip, sub_file, norm_clip, duration, job_
             f'subtitles={sub_file}:fontsdir={FONTS_DIR}:'
             f'force_style=\'Fontname={SUB_FONT},Fontsize={SUB_SIZE},Bold=1,'
             f'PrimaryColour=&HFFFFFF,OutlineColour=&H000000,'
-            f'BorderStyle=1,Outline=3,Alignment=2,MarginV={SUB_MARGIN_V}\''
+            f'BorderStyle=1,Outline=1.5,Shadow=0,Alignment=2,MarginL=30,MarginR=30,MarginV={SUB_MARGIN_V}\''
+
         )
 
     cmd = (
